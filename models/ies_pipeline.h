@@ -980,6 +980,7 @@ enum ies_header_instance {
 	HEADER_INSTANCE_L2_MP_METADATA,
 	HEADER_INSTANCE_VXLAN_GPE,
 	HEADER_INSTANCE_NSH,
+	HEADER_INSTANCE_IPV6,
 };
 
 static struct net_mat_field_ref matches_nexthop[] = {
@@ -1514,6 +1515,45 @@ static struct net_mat_hdr_node my_header_node_ipv4 = {
 	.jump = my_parse_ipv4,
 };
 
+/* IPv6 equivalent to IPv4 above */
+static struct net_mat_jump_table my_parse_ipv6[] = {
+	{
+		.node = HEADER_INSTANCE_TCP,
+		.field = {
+			.header = HEADER_IPV6,
+			.field = HEADER_IPV6_NEXT_HEADER,
+			.type = NET_MAT_FIELD_REF_ATTR_TYPE_U16,
+			.v.u16 = {
+				.value_u16 = 6,
+				.mask_u16 = 0xFFFF,
+			}
+		}
+	},
+	{
+		.node = HEADER_INSTANCE_UDP,
+		.field = {
+			.header = HEADER_IPV6,
+			.field = HEADER_IPV6_NEXT_HEADER,
+			.type = NET_MAT_FIELD_REF_ATTR_TYPE_U16,
+			.v.u16 = {
+				.value_u16 = 17,
+				.mask_u16 = 0xFFFF,
+			}
+		}
+	},
+	{
+		.node = 0,
+	},
+};
+
+static __u32 my_ipv6_headers[] = {HEADER_IPV6, 0};
+static struct net_mat_hdr_node my_header_node_ipv6 = {
+	.name = ipv6_str,
+	.uid = HEADER_INSTANCE_IPV6,
+	.hdrs = my_ipv6_headers,
+	.jump = my_parse_ipv6,
+};
+
 #define VXLAN_UDP_PORT 1234
 #define VXLAN_GPE_UDP_PORT 4790
 
@@ -1785,6 +1825,7 @@ static struct net_mat_hdr_node *my_hdr_nodes[] = {
 	&my_header_node_l2mp_metadata,
 	&my_header_node_vxlan_gpe,
 	&my_header_node_nsh,
+	&my_header_node_ipv6,
 	NULL,
 };
 
