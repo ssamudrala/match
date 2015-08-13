@@ -57,6 +57,8 @@
 #include "matchlib.h"
 #include "matlog.h"
 
+#include <arpa/inet.h>
+
 #define MAX_TABLES 200
 #define MAX_HDRS 200
 #define MAX_FIELDS 200
@@ -573,6 +575,15 @@ static void pp_field_ref(FILE *fp, int print, struct net_mat_field_ref *ref,
 			snprintf(valbuf, sizeof(valbuf), "0x%" PRIx64, ref->v.u64.value_u64);
 		if (!match_pp_mac_addr(&ref->v.u64.mask_u64, maskbuf, sizeof(maskbuf)))
 			snprintf(valbuf, sizeof(valbuf), "0x%" PRIx64, ref->v.u64.mask_u64);
+		snprintf(fieldstr, fieldlen, "\t %s.%s = %s (%s)",
+			 headers_names(hi), fi ? fields_names(hi, fi) : empty,
+			 valbuf, maskbuf);
+		if (e)
+			agsafeset(e, label, fieldstr, empty);
+		break;
+	case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+		inet_ntop(AF_INET6, ref->v.in6.value_in6.s6_addr32, valbuf, sizeof(valbuf));
+		inet_ntop(AF_INET6, ref->v.in6.mask_in6.s6_addr32, maskbuf, sizeof(maskbuf));
 		snprintf(fieldstr, fieldlen, "\t %s.%s = %s (%s)",
 			 headers_names(hi), fi ? fields_names(hi, fi) : empty,
 			 valbuf, maskbuf);

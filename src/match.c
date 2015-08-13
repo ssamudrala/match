@@ -884,12 +884,27 @@ int get_match_arg(int argc, char **argv, bool need_value, bool need_mask_type,
 			/* one field was parsed */
 			err = 1;
 		}
+	} else if (field->bitwidth == 128) {
+		errno = 0;
+		match->type = NET_MAT_FIELD_REF_ATTR_TYPE_IN6;
+
+		if (!inet_pton(AF_INET6, *argv, &match->v.in6.value_in6)) {
+			fprintf(stderr,
+			        "Error: Invalid IPv6 address (%s)\n",
+			        *argv);
+			return -EINVAL;
+		} else {
+			/* one field was parsed */
+			err = 1;
+		}
 	}
 	advance++;
 
 	next_arg(); /* need a mask if its not an exact match */
 
-	mask = (1ULL << field->bitwidth) - 1;
+	mask = (__u64)-1;
+	if (match->type != NET_MAT_FIELD_REF_ATTR_TYPE_IN6)
+		mask = (1ULL << field->bitwidth) - 1;
 
 	/* If end of the line is reached, or if the next value appearing on
 	 * the command line appears in the list of keywords, then a mask
@@ -908,6 +923,12 @@ int get_match_arg(int argc, char **argv, bool need_value, bool need_mask_type,
 			break;
 		case NET_MAT_FIELD_REF_ATTR_TYPE_U64:
 			match->v.u64.mask_u64 = mask;
+			break;
+		case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+			match->v.in6.mask_in6.s6_addr32[0] = (__u32)-1;
+			match->v.in6.mask_in6.s6_addr32[1] = (__u32)-1;
+			match->v.in6.mask_in6.s6_addr32[2] = (__u32)-1;
+			match->v.in6.mask_in6.s6_addr32[3] = (__u32)-1;
 			break;
 		default:
 			fprintf(stderr,"Error: Invalid mask type\n");
@@ -959,6 +980,20 @@ int get_match_arg(int argc, char **argv, bool need_value, bool need_mask_type,
 		if (match_macaddr2u64(&match->v.u64.mask_u64, *argv)) {
 			fprintf(stderr,
 			        "Error: Invalid u64 or MAC address value (%s)\n",
+			        *argv);
+			return -EINVAL;
+		} else {
+			/* one field was parsed */
+			err = 1;
+		}
+
+		break;
+	case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+		errno = 0;
+
+		if (!inet_pton(AF_INET6, *argv, &match->v.in6.mask_in6)) {
+			fprintf(stderr,
+			        "Error: Invalid IPv6 address (%s)\n",
 			        *argv);
 			return -EINVAL;
 		} else {
