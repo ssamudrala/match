@@ -2210,6 +2210,24 @@ int switch_create_TCAM_table(__u32 table_id, struct net_mat_field_ref *matches, 
 			}
 
 			break;
+		case HEADER_INSTANCE_IPV6:
+			switch (matches[i].field) {
+			case HEADER_IPV6_SRC_IP:
+				condition |= FM_FLOW_MATCH_SRC_IP;
+				break;
+			case HEADER_IPV6_DST_IP:
+				condition |= FM_FLOW_MATCH_DST_IP;
+				break;
+			case HEADER_IPV6_NEXT_HEADER:
+				condition |= FM_FLOW_MATCH_PROTOCOL;
+				break;
+			default:
+				MAT_LOG(ERR, "%s: match error in HEADER_IPV6, field=%d\n", __func__, matches[i].field);
+				err = -EINVAL;
+				break;
+			}
+
+			break;
 		case HEADER_INSTANCE_TCP:
 			switch (matches[i].field) {
 			case HEADER_TCP_SRC_PORT:
@@ -2892,6 +2910,96 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 			}
 
 			break;
+
+		case HEADER_INSTANCE_IPV6:
+			switch (matches[i].field) {
+			case HEADER_IPV6_SRC_IP:
+				cond |= FM_FLOW_MATCH_SRC_IP;
+				condVal.srcIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
+				condVal.srcIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.srcIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.srcIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.srcIp.isIPv6 = TRUE;
+				condVal.srcIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
+				condVal.srcIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.srcIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.srcIpMask.isIPv6 = TRUE;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
+					__func__,
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+#endif /* DEBUG */
+
+				break;
+			case HEADER_IPV6_DST_IP:
+				cond |= FM_FLOW_MATCH_DST_IP;
+				condVal.dstIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
+				condVal.dstIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.dstIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.dstIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.dstIp.isIPv6 = TRUE;
+				condVal.dstIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
+				condVal.dstIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.dstIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.dstIpMask.isIPv6 = TRUE;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match DST_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
+					__func__,
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+#endif /* DEBUG */
+
+				break;
+			case HEADER_IPV6_NEXT_HEADER:
+				cond |= FM_FLOW_MATCH_PROTOCOL;
+				condVal.protocol = (fm_byte)matches[i].v.u16.value_u16;
+				condVal.protocolMask = (fm_byte)matches[i].v.u16.mask_u16;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match PROTOCOL(0x%08x:0x%08x)\n", __func__, condVal.protocol, condVal.protocolMask);
+#endif /* DEBUG */
+				break;
+
+			default:
+				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_IPV6, field=%d\n", __func__, matches[i].field);
+				err = -EINVAL;
+				break;
+			}
+
+			break;
+
 		case HEADER_INSTANCE_TCP:
 		case HEADER_INSTANCE_UDP:
 			/* Configure protocool as required by fmAPI */
@@ -3589,8 +3697,88 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 				MAT_LOG(DEBUG, "%s: match PROTOCOL(0x%08x:0x%08x)\n", __func__, condVal.protocol, condVal.protocolMask);
 #endif /* DEBUG */
 				break;
+
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_IPV4, field=%d\n", __func__, matches[i].field);
+				err = -EINVAL;
+				break;
+			}
+
+			break;
+		case HEADER_INSTANCE_IPV6:
+			switch (matches[i].field) {
+			case HEADER_IPV6_SRC_IP:
+				cond |= FM_FLOW_MATCH_SRC_IP;
+				condVal.srcIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
+				condVal.srcIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.srcIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.srcIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.srcIp.isIPv6 = TRUE;
+				condVal.srcIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
+				condVal.srcIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.srcIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.srcIpMask.isIPv6 = TRUE;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
+					__func__,
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+#endif /* DEBUG */
+
+				break;
+			case HEADER_IPV6_DST_IP:
+				cond |= FM_FLOW_MATCH_DST_IP;
+				condVal.dstIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
+				condVal.dstIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.dstIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.dstIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.dstIp.isIPv6 = TRUE;
+				condVal.dstIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
+				condVal.dstIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.dstIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.dstIpMask.isIPv6 = TRUE;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match DST_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
+					__func__,
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
+					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+#endif /* DEBUG */
+
+				break;
+			default:
+				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_IPV6, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;
 				break;
 			}
