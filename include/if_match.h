@@ -31,6 +31,8 @@
 #define _IF_MATCH_H
 
 #include <linux/types.h>
+#include <linux/in6.h>
+
 #define MATCHLIB_PID_FILE "/var/run/matchd.pid"
 #define NET_MAT_DFLT_FAMILY 555
 
@@ -72,6 +74,7 @@ enum net_mat_action_arg_type {
 	NET_MAT_ACTION_ARG_TYPE_U32,
 	NET_MAT_ACTION_ARG_TYPE_U64,
 	NET_MAT_ACTION_ARG_TYPE_VARIADIC,
+	NET_MAT_ACTION_ARG_TYPE_IN6,
 	__NET_MAT_ACTION_ARG_TYPE_VAL_MAX,
 };
 
@@ -83,6 +86,7 @@ static const char *__net_mat_action_arg_type_str[] =  {
 	[NET_MAT_ACTION_ARG_TYPE_U32]		= "u32",
 	[NET_MAT_ACTION_ARG_TYPE_U64]		= "u64",
 	[NET_MAT_ACTION_ARG_TYPE_VARIADIC]	= "(variadic)",
+	[NET_MAT_ACTION_ARG_TYPE_IN6]		= "in6",
 };
 
 static inline const char *net_mat_action_arg_type_str(__u32 i) {
@@ -105,6 +109,7 @@ struct net_mat_action_arg {
 		__u16 value_u16;
 		__u32 value_u32;
 		__u64 value_u64;
+		struct in6_addr value_in6;
 	} v;
 };
 
@@ -158,6 +163,10 @@ struct net_mat_field_ref {
 			__u64 value_u64;
 			__u64 mask_u64;
 		} u64;
+		struct {
+			struct in6_addr value_in6;
+			struct in6_addr mask_in6;
+		} in6;
 	} v;
 };
 
@@ -182,6 +191,7 @@ struct net_mat_named_value {
 		__u16 u16;
 		__u32 u32;
 		__u64 u64;
+		struct in6_addr in6;
 	} value;
 	__u8 write;
 };
