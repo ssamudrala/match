@@ -75,6 +75,19 @@ static char ipv4_str[] = "ipv4";
 static char ipv4_inner_str[] = "ipv4_inner";
 static char src_port[] = "src_port";
 static char dst_port[] = "dst_port";
+
+/* ipv6 fields */
+static char ipv6_str[] = "ipv6";
+static char ipv6_version[] = "ipv6_version";
+static char ipv6_tc[] = "ipv6_traffic_class";
+static char ipv6_flow_label[] = "ipv6_flow_label";
+static char ipv6_payload_length[]= "ipv6_payload_length";
+static char ipv6_next_header[] = "ipv6_next_header";
+static char ipv6_hop_limit[] = "ipv6_hop_limit";
+static char ipv6_src_ip[] = "ipv6_src_ip";
+static char ipv6_dst_ip[] = "ipv6_dst_ip";
+
+/* more fields */
 static char seq_str[] = "seq";
 static char ack[] = "ack";
 static char offset[] = "offset";
@@ -169,6 +182,7 @@ enum ies_header_ids {
 	HEADER_METADATA,
 	HEADER_VXLAN_GPE,
 	HEADER_NSH,
+	HEADER_IPV6,
 };
 
 enum ies_header_ethernet_ids {
@@ -296,6 +310,51 @@ static struct net_mat_hdr ipv4 = {
 	.uid = HEADER_IPV4,
 	.field_sz = ARRAY_SIZE(ipv4_fields),
 	.fields = ipv4_fields,
+};
+
+enum ies_header_ipv6_ids {
+	HEADER_IPV6_VERSION = 1,
+	HEADER_IPV6_TRAFFIC_CLASS,
+	HEADER_IPV6_FLOW_LABEL,
+	HEADER_IPV6_PAYLOAD_LENGTH,
+	HEADER_IPV6_NEXT_HEADER,
+	HEADER_IPV6_HOP_LIMIT,
+	HEADER_IPV6_SRC_IP,
+	HEADER_IPV6_DST_IP,
+};
+
+static struct net_mat_field ipv6_fields[8] = {
+	{ .name = ipv6_version,
+	  .uid = HEADER_IPV6_VERSION,
+	  .bitwidth = 4,},
+	{ .name = ipv6_tc,
+	  .uid = HEADER_IPV6_TRAFFIC_CLASS,
+	  .bitwidth = 8,},
+	{ .name = ipv6_flow_label,
+	  .uid = HEADER_IPV6_FLOW_LABEL,
+	  .bitwidth = 20,},
+	{ .name = ipv6_payload_length,
+	  .uid = HEADER_IPV6_PAYLOAD_LENGTH,
+	  .bitwidth = 16,},
+	{ .name = ipv6_next_header,
+	  .uid = HEADER_IPV6_NEXT_HEADER,
+	  .bitwidth = 8,},
+	{ .name = ipv6_hop_limit,
+	  .uid = HEADER_IPV6_HOP_LIMIT,
+	  .bitwidth = 8,},
+	{ .name = ipv6_src_ip,
+	  .uid = HEADER_IPV6_SRC_IP,
+	  .bitwidth = 128,},
+	{ .name = ipv6_dst_ip,
+	  .uid = HEADER_IPV6_DST_IP,
+	  .bitwidth = 128,},
+};
+
+static struct net_mat_hdr ipv6 = {
+	.name = ipv6_str,
+	.uid = HEADER_IPV6,
+	.field_sz = ARRAY_SIZE(ipv6_fields),
+	.fields = ipv6_fields,
 };
 
 enum ies_header_tcp_ids {
@@ -505,6 +564,7 @@ static struct net_mat_hdr *my_header_list[] = {
 	&metadata_t,
 	&vxlan_gpe,
 	&nsh,
+	&ipv6,
 	NULL,
 };
 
