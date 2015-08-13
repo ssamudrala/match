@@ -48,6 +48,8 @@
 #include "backend.h"
 #include "matlog.h"
 
+#include <arpa/inet.h>
+
 #define FM_MAIN_SWITCH         0
 #define FM_DEFAULT_VLAN 1
 #define MATCH_DEEP_INSPECTION_PROFILE_NSH 4
@@ -2926,25 +2928,15 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
 				condVal.srcIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
-				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
-					__func__,
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+				{
+				char addr[INET6_ADDRSTRLEN];
+				char mask[INET6_ADDRSTRLEN];
 
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %s m: %s)\n",
+					__func__,
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, mask, sizeof(mask)));
+				}
 #endif /* DEBUG */
 
 				break;
@@ -2961,25 +2953,15 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
 				condVal.dstIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
-				MAT_LOG(DEBUG, "%s: match DST_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
-					__func__,
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+				{
+				char addr[INET6_ADDRSTRLEN];
+				char mask[INET6_ADDRSTRLEN];
 
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+				MAT_LOG(DEBUG, "%s: match DST_IP(a: %s m: %s\n",
+					__func__,
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, mask, sizeof(mask)));
+				}
 #endif /* DEBUG */
 
 				break;
@@ -3720,25 +3702,15 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
 				condVal.srcIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
-				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
-					__func__,
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+				{
+				char addr[INET6_ADDRSTRLEN];
+				char mask[INET6_ADDRSTRLEN];
 
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %s m: %s)\n",
+					__func__,
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
+					inet_ntop(AF_INET6, &matches[i].v.in6.mask_in6, mask, sizeof(mask)));
+				}
 #endif /* DEBUG */
 
 				break;
@@ -3755,25 +3727,15 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
 				condVal.dstIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
-				MAT_LOG(DEBUG, "%s: match DST_IP(a: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x m: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x)\n",
-					__func__,
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.value_in6.s6_addr16[7]),
+				{
+				char addr[INET6_ADDRSTRLEN];
+				char mask[INET6_ADDRSTRLEN];
 
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[0]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[1]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[2]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[3]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[4]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[5]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[6]),
-					ntohs(matches[i].v.in6.mask_in6.s6_addr16[7]));
+				MAT_LOG(DEBUG, "%s: match DST_IP(a: %s m: %s)\n",
+					__func__,
+					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
+					inet_ntop(AF_INET6, &matches[i].v.in6.mask_in6, mask, sizeof(mask)));
+				}
 #endif /* DEBUG */
 
 				break;
