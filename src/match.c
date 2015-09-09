@@ -120,7 +120,6 @@ static void match_usage(void)
 	printf("  -f FAMILY  netlink family\n");
 	printf("  -g         display graphs in DOT format\n");
 	printf("  -h         display this help message and exit\n");
-	printf("  -i IFNAME  interface name (e.g. eth0)\n");
 	printf("  -p PID     pid of userspace match daemon\n");
 	printf("  -s         silence verbose printing\n");
 	printf("  --version  display Match interface version and exit\n");
@@ -2542,7 +2541,6 @@ int main(int argc, char **argv)
 	struct nl_sock *fd = NULL;
 	int opt;
 	int args = 1;
-	char *ifname = NULL;
 	int opt_index = 0;
 	static struct option long_options[] = {
 		{ "version", no_argument, NULL, 0 },
@@ -2555,7 +2553,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	while ((opt = getopt_long(argc, argv, "i:p:f:hsg", long_options,
+	while ((opt = getopt_long(argc, argv, "p:f:hsg", long_options,
 	                          &opt_index)) != -1) {
 		switch (opt) {
 		case 0:
@@ -2578,10 +2576,6 @@ int main(int argc, char **argv)
 			break;
 		case 'f':
 			family = atoi(optarg);
-			args += 2;
-			break;
-		case 'i':
-			ifname = optarg;
 			args += 2;
 			break;
 		case 'g':
@@ -2667,15 +2661,6 @@ int main(int argc, char **argv)
 	if (err < 0) {
 		nl_perror(err, "Unable to allocate cache\n");
 		return err;
-	}
-
-	if (ifname) {
-		ifindex = (unsigned int)rtnl_link_name2i(link_cache, ifname);
-		if (!ifindex) {
-			fprintf(stderr, "Unable to lookup %s\n", ifname);
-			match_usage();
-			return -1;
-		}
 	}
 
 	if (fd) {
