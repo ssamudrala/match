@@ -8,7 +8,7 @@ match\-set_rule \- Set a new rule in a table
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch set_rule\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch set_rule\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
               prio <prio> handle <handle> table <table>
               match <MATCH> [match <MATCH>...]
               action <ACTION> [ACTION_ARG...]
@@ -38,12 +38,6 @@ The pid of the match daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

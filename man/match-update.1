@@ -8,7 +8,7 @@ match\-update \- Update a match action table attribute
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch update\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch update\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
             id <id> [attrib <ATTRIB> [<ATTRIB_VALUE>...]...]
 .fi
 
@@ -39,12 +39,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

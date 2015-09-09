@@ -8,7 +8,7 @@ match\-lport_lookup \- Lookup a logical port number of PCI device
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch lport_lookup\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch lport_lookup\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
             (pci <BUS:DEVICE.FUNCTION> | mac <MACADDR>)
 .fi
 
@@ -37,12 +37,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

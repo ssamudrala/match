@@ -8,7 +8,7 @@ match\-set_port \- Update a port attribute
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch set_port\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch set_port\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
             port <port> [max_frame_size <size>] [state <up|down>]
 .fi
 
@@ -37,12 +37,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

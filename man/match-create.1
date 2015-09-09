@@ -8,7 +8,7 @@ match\-create \- Create a match action table
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch create\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch create\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
             source <source> name <name> [id <id>] size <size>
             match <MATCH> [match <MATCH>...]
             action <ACTION> [action <ACTION>...]
@@ -41,12 +41,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

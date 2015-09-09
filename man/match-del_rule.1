@@ -8,7 +8,7 @@ match\-del_rule \- Delete an existing rule from a table
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch del_rule\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch del_rule\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
               handle <handle> table <table>
 .fi
 
@@ -35,12 +35,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br

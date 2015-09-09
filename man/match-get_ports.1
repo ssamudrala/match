@@ -8,7 +8,7 @@ match\-get_ports \- Display port information and statistics
 .\" Options, brief
 .SH SYNOPSIS
 .nf
-\fImatch get_ports\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-i ifname] [\-s]
+\fImatch get_ports\fR [\-f <family>] [\-p <pid>] [\-g] [\-h] [\-s]
                [min <min>] [max <max>]
 .fi
 
@@ -35,12 +35,6 @@ The pid of the MATCH daemon (e.g. `pidof lt-matchd`).
 \-g
 .RS 4
 Display graphs in DOT format.
-.RE
-
-.br
-\-i <ifname>
-.RS 4
-Specify interface name (e.g. eth0)
 .RE
 
 .br
