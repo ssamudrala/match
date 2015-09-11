@@ -709,6 +709,7 @@ enum {
 	NET_MAT_PORT_T_LEARNING,
 	NET_MAT_PORT_T_UPDATE_DSCP,
 	NET_MAT_PORT_T_UPDATE_TTL,
+	NET_MAT_PORT_T_MCAST_FLOODING,
 	__NET_MAT_PORT_T_MAX,
 };
 #define NET_MAT_PORT_T_MAX (__NET_MAT_PORT_T_MAX - 1)
@@ -739,6 +740,7 @@ struct net_mat_port {
 	enum flag_state learning;
 	enum flag_state update_dscp;
 	enum flag_state update_ttl;
+	enum flag_state mcast_flooding;
 	__u32 glort;
 };
 

@@ -554,6 +554,7 @@ static int ies_ports_get(struct net_mat_port **ports)
 		fm_bool learning = FM_DISABLED;
 		fm_bool update_dscp = FM_DISABLED;
 		fm_bool update_ttl = FM_DISABLED;
+		fm_int mcast_flooding = FM_DISABLED;
 		fm_int mode, state, info[64];
 		fm_portCounters counter;
 		fm_uint32 speed;
@@ -764,6 +765,26 @@ static int ies_ports_get(struct net_mat_port **ports)
 			break;
 		}
 
+		err = fmGetPortAttribute(sw, port, FM_PORT_MCAST_FLOODING, &mcast_flooding);
+		if (err != FM_OK) {
+			cleanup("fmGetPortAttribute()", err);
+			continue;
+		}
+
+		switch (mcast_flooding) {
+		case FM_PORT_MCAST_DISCARD:
+			p[i].mcast_flooding = NET_MAT_PORT_T_FLAG_DISABLED;
+			break;
+		case FM_PORT_MCAST_FWD:
+		case FM_PORT_MCAST_FWD_EXCPU:
+			p[i].mcast_flooding = NET_MAT_PORT_T_FLAG_ENABLED;
+			break;
+		default:
+			p[i].mcast_flooding = NET_MAT_PORT_T_FLAG_UNSPEC;
+			MAT_LOG(ERR, "Warning: unknown flag value %d\n", mcast_flooding);
+			break;
+		}
+
 		p[i].port_id = (__u32)cpi;
 		i++;
 	}
@@ -849,6 +870,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool learning = FM_DISABLED;
 	fm_bool update_dscp = FM_DISABLED;
 	fm_bool update_ttl = FM_DISABLED;
+	fm_bool mcast_flooding = FM_DISABLED;
 	int i, err = 0;
 
 	fmGetSwitchInfo(sw, &swInfo);
@@ -1011,6 +1033,21 @@ static int ies_ports_set(struct net_mat_port *ports)
 		case NET_MAT_PORT_T_FLAG_DISABLED:
 			update_ttl = FM_DISABLED;
 			err = fmSetPortAttribute(sw, port, FM_PORT_UPDATE_TTL, &update_ttl);
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		switch (p->mcast_flooding) {
+		case NET_MAT_PORT_T_FLAG_UNSPEC:
+			break;
+		case NET_MAT_PORT_T_FLAG_ENABLED:
+			mcast_flooding = FM_PORT_MCAST_FWD;
+			err = fmSetPortAttribute(sw, port, FM_PORT_MCAST_FLOODING, &mcast_flooding);
+			break;
+		case NET_MAT_PORT_T_FLAG_DISABLED:
+			mcast_flooding = FM_PORT_MCAST_DISCARD;
+			err = fmSetPortAttribute(sw, port, FM_PORT_MCAST_FLOODING, &mcast_flooding);
 			break;
 		default:
 			return -EINVAL;
