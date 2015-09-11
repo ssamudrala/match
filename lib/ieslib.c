@@ -552,6 +552,7 @@ static int ies_ports_get(struct net_mat_port **ports)
 		fm_bool drop_untagged = FM_DISABLED;
 		fm_int loopback = FM_PORT_LOOPBACK_OFF;
 		fm_bool learning = FM_DISABLED;
+		fm_bool update_dscp = FM_DISABLED;
 		fm_int mode, state, info[64];
 		fm_portCounters counter;
 		fm_uint32 speed;
@@ -724,6 +725,25 @@ static int ies_ports_get(struct net_mat_port **ports)
 			break;
 		}
 
+		err = fmGetPortAttribute(sw, port, FM_PORT_UPDATE_DSCP, &update_dscp);
+		if (err != FM_OK) {
+			cleanup("fmGetPortAttribute()", err);
+			continue;
+		}
+
+		switch (update_dscp) {
+		case FM_DISABLED:
+			p[i].update_dscp = NET_MAT_PORT_T_FLAG_DISABLED;
+			break;
+		case FM_ENABLED:
+			p[i].update_dscp = NET_MAT_PORT_T_FLAG_ENABLED;
+			break;
+		default:
+			p[i].update_dscp = NET_MAT_PORT_T_FLAG_UNSPEC;
+			MAT_LOG(ERR, "Warning: unknown flag value %d\n", update_dscp);
+			break;
+		}
+
 		p[i].port_id = (__u32)cpi;
 		i++;
 	}
@@ -807,6 +827,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool drop_untagged = FM_DISABLED;
 	fm_int loopback = FM_PORT_LOOPBACK_OFF;
 	fm_bool learning = FM_DISABLED;
+	fm_bool update_dscp = FM_DISABLED;
 	int i, err = 0;
 
 	fmGetSwitchInfo(sw, &swInfo);
@@ -939,6 +960,21 @@ static int ies_ports_set(struct net_mat_port *ports)
 		case NET_MAT_PORT_T_FLAG_DISABLED:
 			learning = FM_DISABLED;
 			err = fmSetPortAttribute(sw, port, FM_PORT_LEARNING, &learning);
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		switch (p->update_dscp) {
+		case NET_MAT_PORT_T_FLAG_UNSPEC:
+			break;
+		case NET_MAT_PORT_T_FLAG_ENABLED:
+			update_dscp = FM_ENABLED;
+			err = fmSetPortAttribute(sw, port, FM_PORT_UPDATE_DSCP, &update_dscp);
+			break;
+		case NET_MAT_PORT_T_FLAG_DISABLED:
+			update_dscp = FM_DISABLED;
+			err = fmSetPortAttribute(sw, port, FM_PORT_UPDATE_DSCP, &update_dscp);
 			break;
 		default:
 			return -EINVAL;

@@ -267,7 +267,7 @@ static void set_port_usage(void)
 {
 	printf("Usage: %s set_port port NUM [speed NUM] [state NUM] [max_frame_size NUM] "
 	       "[def_vlan NUM] [def_priority NUM] [drop_tagged VAL] [drop_untagged VAL] "
-	       "[loopback VAL] [learning VAL]\n", progname);
+	       "[loopback VAL] [learning VAL] [update_dscp VAL]\n", progname);
 	printf(" state: up down\n"); 
 	printf(" speed: integer speed\n");
 	printf(" max_frame_size: integer maximum frame size\n");
@@ -277,6 +277,7 @@ static void set_port_usage(void)
 	printf(" drop_untagged: dropping untagged frames on ingress (enabled/disabled)\n");
 	printf(" loopback: tx2rx loopback on port (enabled/disabled)\n");
 	printf(" learning: Learning of source addresses on this port (enabled/disabled)\n");
+	printf(" update_dscp: Port may modify the DSCP on outgoing frames (enabled/disabled)\n");
 }
 
 static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
@@ -2431,6 +2432,23 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				port.learning = NET_MAT_PORT_T_FLAG_DISABLED;
 			} else {
 				fprintf(stderr, "Error: invalid learning state\n");
+				set_port_usage();
+				return -EINVAL;
+			}
+		} else if (strcmp(*argv, "update_dscp") == 0) {
+			next_arg();
+			if (*argv == NULL) {
+				fprintf(stderr, "Error: missing update_dscp state\n");
+				set_port_usage();
+				return -EINVAL;
+			}
+
+			if (strcmp(*argv, flag_state_str(NET_MAT_PORT_T_FLAG_ENABLED)) == 0) {
+				port.update_dscp = NET_MAT_PORT_T_FLAG_ENABLED;
+			} else if (strcmp(*argv, flag_state_str(NET_MAT_PORT_T_FLAG_DISABLED)) == 0) {
+				port.update_dscp = NET_MAT_PORT_T_FLAG_DISABLED;
+			} else {
+				fprintf(stderr, "Error: invalid update_dscp state\n");
 				set_port_usage();
 				return -EINVAL;
 			}
