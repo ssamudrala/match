@@ -293,8 +293,24 @@ struct net_mat_port_stats {
 	uint64_t rx_bytes;
 	uint64_t rx_packets;
 
+	uint64_t rx_unicast_bytes;
+	uint64_t rx_multicast_bytes;
+	uint64_t rx_broadcast_bytes;
+
+	uint64_t rx_unicast_packets;
+	uint64_t rx_multicast_packets;
+	uint64_t rx_broadcast_packets;
+
 	uint64_t tx_bytes;
 	uint64_t tx_packets;
+
+	uint64_t tx_unicast_bytes;
+	uint64_t tx_multicast_bytes;
+	uint64_t tx_broadcast_bytes;
+
+	uint64_t tx_unicast_packets;
+	uint64_t tx_multicast_packets;
+	uint64_t tx_broadcast_packets;
 };
 
 enum flag_state {
@@ -612,7 +628,13 @@ struct net_mat_port_pci {
 enum {
 	NET_MAT_PORT_T_STATS_RXTX_UNSPEC,
 	NET_MAT_PORT_T_STATS_BYTES,
+	NET_MAT_PORT_T_STATS_UNICAST_BYTES,
+	NET_MAT_PORT_T_STATS_MULTICAST_BYTES,
+	NET_MAT_PORT_T_STATS_BROADCAST_BYTES,
 	NET_MAT_PORT_T_STATS_PACKETS,
+	NET_MAT_PORT_T_STATS_UNICAST_PACKETS,
+	NET_MAT_PORT_T_STATS_MULTICAST_PACKETS,
+	NET_MAT_PORT_T_STATS_BROADCAST_PACKETS,
 	__NET_MAT_PORT_T_STATS_RXTX_MAX,
 };
 #define NET_MAT_PORT_T_STATS_RXTX_MAX (__NET_MAT_PORT_T_STATS_RXTX_MAX - 1)

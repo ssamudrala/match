@@ -819,10 +819,22 @@ static void pp_jump_table(FILE *fp, int print,
 static void pp_port_stats(FILE *fp, int print, struct net_mat_port_stats *s)
 {
 	pfprintf(fp, print, "    stats:\n");
-	pfprintf(fp, print, "        rx_packets %" PRIu64 "\n", s->rx_packets);
-	pfprintf(fp, print, "        rx_bytes   %" PRIu64 "\n", s->rx_bytes);
-	pfprintf(fp, print, "        tx_packets %" PRIu64 "\n", s->tx_packets);
-	pfprintf(fp, print, "        tx_bytes   %" PRIu64 "\n", s->tx_bytes);
+	pfprintf(fp, print, "        rx_packets           %" PRIu64 "\n", s->rx_packets);
+	pfprintf(fp, print, "        rx_bytes             %" PRIu64 "\n", s->rx_bytes);
+	pfprintf(fp, print, "        rx_unicast_packets   %" PRIu64 "\n", s->rx_unicast_packets);
+	pfprintf(fp, print, "        rx_multicast_packets %" PRIu64 "\n", s->rx_multicast_packets);
+	pfprintf(fp, print, "        rx_broadcast_packets %" PRIu64 "\n", s->rx_broadcast_packets);
+	pfprintf(fp, print, "        rx_unicast_bytes     %" PRIu64 "\n", s->rx_unicast_bytes);
+	pfprintf(fp, print, "        rx_multicast_bytes   %" PRIu64 "\n", s->rx_multicast_bytes);
+	pfprintf(fp, print, "        rx_broadcast_bytes   %" PRIu64 "\n", s->rx_broadcast_bytes);
+	pfprintf(fp, print, "        tx_packets           %" PRIu64 "\n", s->tx_packets);
+	pfprintf(fp, print, "        tx_bytes             %" PRIu64 "\n", s->tx_bytes);
+	pfprintf(fp, print, "        tx_unicast_packets   %" PRIu64 "\n", s->tx_unicast_packets);
+	pfprintf(fp, print, "        tx_multicast_packets %" PRIu64 "\n", s->tx_multicast_packets);
+	pfprintf(fp, print, "        tx_broadcast_packets %" PRIu64 "\n", s->tx_broadcast_packets);
+	pfprintf(fp, print, "        tx_unicast_bytes     %" PRIu64 "\n", s->tx_unicast_bytes);
+	pfprintf(fp, print, "        tx_multicast_bytes   %" PRIu64 "\n", s->tx_multicast_bytes);
+	pfprintf(fp, print, "        tx_broadcast_bytes   %" PRIu64 "\n", s->tx_broadcast_bytes);
 }
 
 static void pp_port_vlan(FILE *fp, int print, struct net_mat_port_vlan *v)
@@ -2085,6 +2097,18 @@ static int match_get_port_stats(FILE *fp __unused, int print __unused,
 			stats->rx_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_BYTES]);
 		if (s[NET_MAT_PORT_T_STATS_PACKETS])
 			stats->rx_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_UNICAST_BYTES])
+			stats->rx_unicast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_UNICAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_MULTICAST_BYTES])
+			stats->rx_multicast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_MULTICAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_BROADCAST_BYTES])
+			stats->rx_broadcast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_BROADCAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_UNICAST_PACKETS])
+			stats->rx_unicast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_UNICAST_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_MULTICAST_PACKETS])
+			stats->rx_multicast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_MULTICAST_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_BROADCAST_PACKETS])
+			stats->rx_broadcast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_BROADCAST_PACKETS]);
 	}
 
 	if (p[NET_MAT_PORT_T_STATS_TX]) {
@@ -2102,6 +2126,18 @@ static int match_get_port_stats(FILE *fp __unused, int print __unused,
 			stats->tx_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_BYTES]);
 		if (s[NET_MAT_PORT_T_STATS_PACKETS])
 			stats->tx_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_UNICAST_BYTES])
+			stats->tx_unicast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_UNICAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_MULTICAST_BYTES])
+			stats->tx_multicast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_MULTICAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_BROADCAST_BYTES])
+			stats->tx_broadcast_bytes = nla_get_u64(s[NET_MAT_PORT_T_STATS_BROADCAST_BYTES]);
+		if (s[NET_MAT_PORT_T_STATS_UNICAST_PACKETS])
+			stats->tx_unicast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_UNICAST_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_MULTICAST_PACKETS])
+			stats->tx_multicast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_MULTICAST_PACKETS]);
+		if (s[NET_MAT_PORT_T_STATS_BROADCAST_PACKETS])
+			stats->tx_broadcast_packets = nla_get_u64(s[NET_MAT_PORT_T_STATS_BROADCAST_PACKETS]);
 	}
 
 	return 0;
@@ -2872,13 +2908,25 @@ int match_put_port(struct nl_msg *nlbuf, struct net_mat_port *p)
 
 	tx_stats = nla_nest_start(nlbuf, NET_MAT_PORT_T_STATS_TX);
 	if ((p->stats.tx_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BYTES, p->stats.tx_bytes)) ||
-	    (p->stats.tx_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_PACKETS, p->stats.tx_packets)))
+	    (p->stats.tx_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_PACKETS, p->stats.tx_packets)) ||
+	    (p->stats.tx_unicast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_UNICAST_BYTES, p->stats.tx_unicast_bytes)) ||
+	    (p->stats.tx_multicast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_MULTICAST_BYTES, p->stats.tx_multicast_bytes)) ||
+	    (p->stats.tx_broadcast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BROADCAST_BYTES, p->stats.tx_broadcast_bytes)) ||
+	    (p->stats.tx_unicast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_UNICAST_PACKETS, p->stats.tx_unicast_packets)) ||
+	    (p->stats.tx_multicast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_MULTICAST_PACKETS, p->stats.tx_multicast_packets)) ||
+	    (p->stats.tx_broadcast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BROADCAST_PACKETS, p->stats.tx_broadcast_packets)))
 		return -EMSGSIZE;
 	nla_nest_end(nlbuf, tx_stats);
 
 	rx_stats = nla_nest_start(nlbuf, NET_MAT_PORT_T_STATS_RX);
 	if ((p->stats.rx_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BYTES, p->stats.rx_bytes)) ||
-	    (p->stats.rx_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_PACKETS, p->stats.rx_packets)))
+	    (p->stats.rx_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_PACKETS, p->stats.rx_packets)) ||
+	    (p->stats.rx_unicast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_UNICAST_BYTES, p->stats.rx_unicast_bytes)) ||
+	    (p->stats.rx_multicast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_MULTICAST_BYTES, p->stats.rx_multicast_bytes)) ||
+	    (p->stats.rx_broadcast_bytes && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BROADCAST_BYTES, p->stats.rx_broadcast_bytes)) ||
+	    (p->stats.rx_unicast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_UNICAST_PACKETS, p->stats.rx_unicast_packets)) ||
+	    (p->stats.rx_multicast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_MULTICAST_PACKETS, p->stats.rx_multicast_packets)) ||
+	    (p->stats.rx_broadcast_packets && nla_put_u64(nlbuf, NET_MAT_PORT_T_STATS_BROADCAST_PACKETS, p->stats.rx_broadcast_packets)))
 		return -EMSGSIZE;
 	nla_nest_end(nlbuf, rx_stats);
 

@@ -521,15 +521,38 @@ static void ies_get_pkt_stats(struct net_mat_port_stats *s, fm_portCounters *c)
 			c->cntRxBcstPkts +
 			c->cntRxMcstPkts;
 
+	s->rx_unicast_packets = c->cntRxUcstPkts;
+	s->rx_multicast_packets = c->cntRxMcstPkts;
+	s->rx_broadcast_packets = c->cntRxBcstPkts;
+
 	s->rx_bytes = c->cntRxOctetsNonIp +
 	              c->cntRxOctetsIPv4 +
 	              c->cntRxOctetsIPv6;
+
+	s->rx_unicast_bytes = c->cntRxUcstOctetsNonIP +
+	                      c->cntRxUcstOctetsIPv4 +
+	                      c->cntRxUcstOctetsIPv6;
+
+	s->rx_multicast_bytes = c->cntRxMcstOctetsNonIP +
+	                        c->cntRxMcstOctetsIPv4 +
+	                        c->cntRxMcstOctetsIPv6;
+
+	s->rx_broadcast_bytes = c->cntRxBcstOctetsNonIP +
+	                        c->cntRxBcstOctetsIPv4 +
+	                        c->cntRxBcstOctetsIPv6;
 
 	s->tx_packets = c->cntTxUcstPkts +
 			c->cntTxBcstPkts +
 			c->cntTxMcstPkts;
 
+	s->tx_unicast_packets = c->cntTxUcstPkts;
+	s->tx_multicast_packets = c->cntTxMcstPkts;
+	s->tx_broadcast_packets = c->cntTxBcstPkts;
+
 	s->tx_bytes = c->cntTxOctets;
+	s->tx_unicast_bytes = c->cntTxUcstOctets;
+	s->tx_multicast_bytes = c->cntTxMcstOctets;
+	s->tx_broadcast_bytes = c->cntTxBcstOctets;
 }
 
 static int ies_ports_get(struct net_mat_port **ports)
