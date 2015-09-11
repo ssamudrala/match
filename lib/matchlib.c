@@ -462,6 +462,7 @@ static struct nla_policy net_mat_port_policy[NET_MAT_PORT_T_MAX+1] = {
 	[NET_MAT_PORT_T_LOOPBACK] = { .type = NLA_U32, },
 	[NET_MAT_PORT_T_LEARNING] = { .type = NLA_U32, },
 	[NET_MAT_PORT_T_UPDATE_DSCP] = { .type = NLA_U32, },
+	[NET_MAT_PORT_T_UPDATE_TTL] = { .type = NLA_U32, },
 
 };
 
@@ -855,6 +856,9 @@ void pp_port(FILE *fp, int print,
 
 	if (port->update_dscp)
 		pfprintf(fp, print, "    update_dscp: %s\n", flag_state_str(port->update_dscp));
+
+	if (port->update_ttl)
+		pfprintf(fp, print, "    update_ttl: %s\n", flag_state_str(port->update_ttl));
 
 	pp_port_vlan(fp, print, &port->vlan);
 
@@ -2184,6 +2188,9 @@ int match_get_port(FILE *fp, int print, struct nlattr *nlattr,
 	if (p[NET_MAT_PORT_T_UPDATE_DSCP])
 		port->update_dscp = nla_get_u32(p[NET_MAT_PORT_T_UPDATE_DSCP]);
 
+	if (p[NET_MAT_PORT_T_UPDATE_TTL])
+		port->update_ttl = nla_get_u32(p[NET_MAT_PORT_T_UPDATE_TTL]);
+
 	pp_port(fp, print, port);
 	return 0;
 }
@@ -2833,6 +2840,9 @@ int match_put_port(struct nl_msg *nlbuf, struct net_mat_port *p)
 		return -EMSGSIZE;
 
 	if (nla_put_u32(nlbuf, NET_MAT_PORT_T_UPDATE_DSCP, p->update_dscp))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(nlbuf, NET_MAT_PORT_T_UPDATE_TTL, p->update_ttl))
 		return -EMSGSIZE;
 
 	stats = nla_nest_start(nlbuf, NET_MAT_PORT_T_STATS);
