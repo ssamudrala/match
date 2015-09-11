@@ -706,6 +706,7 @@ enum {
 	NET_MAT_PORT_T_VLAN,
 	NET_MAT_PORT_T_LOOPBACK,
 	NET_MAT_PORT_T_GLORT,
+	NET_MAT_PORT_T_LEARNING,
 	__NET_MAT_PORT_T_MAX,
 };
 #define NET_MAT_PORT_T_MAX (__NET_MAT_PORT_T_MAX - 1)
@@ -733,6 +734,7 @@ struct net_mat_port {
 	struct net_mat_port_stats stats;
 	struct net_mat_port_vlan vlan;
 	enum flag_state loopback;
+	enum flag_state learning;
 	__u32 glort;
 };
 
