@@ -2972,6 +2972,12 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 			MAT_LOG(DEBUG, "%s: action PERMIT\n", __func__);
 #endif /* DEBUG */
 			break;
+		case ACTION_DENY:
+			act |= FM_FLOW_ACTION_DENY;
+#ifdef DEBUG
+			MAT_LOG(DEBUG, "%s: action DENY\n", __func__);
+#endif /* DEBUG */
+			break;
 		case ACTION_COUNT:
 			act |= FM_FLOW_ACTION_COUNT;
 #ifdef DEBUG

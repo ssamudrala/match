@@ -93,6 +93,7 @@ static char empty[] = "";
 static char set_egress_port_str[] = "set_egress_port";
 static char drop_str[] = "drop_packet";
 static char permit_str[] = "permit";
+static char deny_str[] = "deny";
 static char ecmp_group_id[] = "ecmp_group_id";
 static char route_via_ecmp_str[] = "route_via_ecmp";
 static char newDMAC[] = "newDMAC";
@@ -526,6 +527,7 @@ enum ies_pipeline_action_ids {
 	ACTION_TRAP,
 	ACTION_DROP_PACKET,
 	ACTION_PERMIT,
+	ACTION_DENY,
 	ACTION_ROUTE_VIA_ECMP,
 	ACTION_ROUTE,
 	ACTION_COUNT,
@@ -569,6 +571,12 @@ static struct net_mat_action drop_packet = {
 static struct net_mat_action permit = {
 	.name = permit_str,
 	.uid = ACTION_PERMIT,
+	.args = NULL,
+};
+
+static struct net_mat_action deny = {
+	.name = deny_str,
+	.uid = ACTION_DENY,
 	.args = NULL,
 };
 
@@ -855,6 +863,7 @@ static struct net_mat_action *my_action_list[] = {
 	&set_egress_port,
 	&drop_packet,
 	&permit,
+	&deny,
 	&route_via_ecmp,
 	&route,
 	&set_dst_mac,
@@ -1147,6 +1156,7 @@ static __u32 actions_mac[] = {ACTION_SET_EGRESS_PORT,
 static __u32 actions_tcam[] = {ACTION_SET_EGRESS_PORT, ACTION_ROUTE_VIA_ECMP,
 			       ACTION_DROP_PACKET,
 			       ACTION_PERMIT,
+			       ACTION_DENY,
 			       ACTION_SET_VLAN, ACTION_NORMAL, ACTION_TRAP,
 			       ACTION_FORWARD_TO_TE_A, ACTION_FORWARD_TO_TE_B,
 			       ACTION_FORWARD_DIRECT_TO_TE_A,
