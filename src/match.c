@@ -268,7 +268,8 @@ static void set_port_usage(void)
 	printf("Usage: %s set_port port NUM [speed NUM] [state NUM] [max_frame_size NUM] "
 	       "[def_vlan NUM] [def_priority NUM] [drop_tagged VAL] [drop_untagged VAL] "
 	       "[loopback VAL] [learning VAL] [update_dscp VAL] [update_ttl VAL]"
-	       "[update_dmac VAL] [update_smac VAL] [mcast_flooding VAL]\n", progname);
+	       "[update_dmac VAL] [update_smac VAL] [update_vlan VAL] [mcast_flooding VAL]\n",
+		progname);
 	printf(" state: up down\n"); 
 	printf(" speed: integer speed\n");
 	printf(" max_frame_size: integer maximum frame size\n");
@@ -282,6 +283,7 @@ static void set_port_usage(void)
 	printf(" update_ttl: Port should decrement the TTL field on outgoing routed frames (enabled/disabled)\n");
 	printf(" update_dmac: Port updates Destination MAC on a routed frames (enabled/disabled)\n");
 	printf(" update_smac: Port updates Source MAC on a routed frames (enabled/disabled)\n");
+	printf(" update_vlan: Port updates VLAN on a routed frames (enabled/disabled)\n");
 	printf(" mcast_flooding: Multicast frames forwarding (enabled/disabled)\n");
 }
 
@@ -2557,6 +2559,23 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				port.update_smac = NET_MAT_PORT_T_FLAG_DISABLED;
 			} else {
 				fprintf(stderr, "Error: invalid update_smac state\n");
+				set_port_usage();
+				return -EINVAL;
+			}
+		} else if (strcmp(*argv, "update_vlan") == 0) {
+			next_arg();
+			if (*argv == NULL) {
+				fprintf(stderr, "Error: missing update_vlan state\n");
+				set_port_usage();
+				return -EINVAL;
+			}
+
+			if (strcmp(*argv, flag_state_str(NET_MAT_PORT_T_FLAG_ENABLED)) == 0) {
+				port.update_vlan = NET_MAT_PORT_T_FLAG_ENABLED;
+			} else if (strcmp(*argv, flag_state_str(NET_MAT_PORT_T_FLAG_DISABLED)) == 0) {
+				port.update_vlan = NET_MAT_PORT_T_FLAG_DISABLED;
+			} else {
+				fprintf(stderr, "Error: invalid update_vlan state\n");
 				set_port_usage();
 				return -EINVAL;
 			}
