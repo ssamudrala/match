@@ -580,6 +580,7 @@ static int ies_ports_get(struct net_mat_port **ports)
 		fm_bool update_dscp = FM_DISABLED;
 		fm_bool update_ttl = FM_DISABLED;
 		fm_int mcast_flooding = FM_DISABLED;
+		fm_uint32 update_frame;
 		fm_int mode, state, info[64];
 		fm_portCounters counter;
 		fm_uint32 speed;
@@ -810,6 +811,17 @@ static int ies_ports_get(struct net_mat_port **ports)
 			break;
 		}
 
+		err = fmGetPortAttribute(sw, port, FM_PORT_ROUTED_FRAME_UPDATE_FIELDS, &update_frame);
+		if (err != FM_OK) {
+			cleanup("fmGetPortAttribute()", err);
+			continue;
+		}
+
+		if (update_frame & FM_PORT_ROUTED_FRAME_UPDATE_DMAC)
+			p[i].update_dmac = NET_MAT_PORT_T_FLAG_ENABLED;
+		else
+			p[i].update_dmac = NET_MAT_PORT_T_FLAG_DISABLED;
+
 		p[i].port_id = (__u32)cpi;
 		i++;
 	}
@@ -896,6 +908,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool update_dscp = FM_DISABLED;
 	fm_bool update_ttl = FM_DISABLED;
 	fm_bool mcast_flooding = FM_DISABLED;
+	fm_uint32 update_frame;
 	int i, err = 0;
 
 	fmGetSwitchInfo(sw, &swInfo);
@@ -1077,6 +1090,27 @@ static int ies_ports_set(struct net_mat_port *ports)
 		default:
 			return -EINVAL;
 		}
+
+		err = fmGetPortAttribute(sw, port, FM_PORT_ROUTED_FRAME_UPDATE_FIELDS, &update_frame);
+		if (err != FM_OK) {
+			cleanup("fmGetPortAttribute()", err);
+			continue;
+		}
+
+		switch (p->update_dmac) {
+		case NET_MAT_PORT_T_FLAG_UNSPEC:
+			break;
+		case NET_MAT_PORT_T_FLAG_ENABLED:
+			update_frame |= FM_PORT_ROUTED_FRAME_UPDATE_DMAC;
+			break;
+		case NET_MAT_PORT_T_FLAG_DISABLED:
+			update_frame &= ((fm_uint32)(-1)) ^ FM_PORT_ROUTED_FRAME_UPDATE_DMAC;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		err = fmSetPortAttribute(sw, port, FM_PORT_ROUTED_FRAME_UPDATE_FIELDS, &update_frame);
 	}
 
 	return err;
