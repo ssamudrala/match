@@ -279,7 +279,7 @@ static void set_port_usage(void)
 	printf(" loopback: tx2rx loopback on port (enabled/disabled)\n");
 	printf(" learning: Learning of source addresses on this port (enabled/disabled)\n");
 	printf(" update_dscp: Port may modify the DSCP on outgoing frames (enabled/disabled)\n");
-	printf(" update_ttl: Port replaces MAC, VLANs, etc. on outgoing frames (enabled/disabled)\n");
+	printf(" update_ttl: Port should decrement the TTL field on outgoing routed frames (enabled/disabled)\n");
 	printf(" mcast_flooding: Multicast frames forwarding (enabled/disabled)\n");
 }
 
