@@ -822,6 +822,11 @@ static int ies_ports_get(struct net_mat_port **ports)
 		else
 			p[i].update_dmac = NET_MAT_PORT_T_FLAG_DISABLED;
 
+		if (update_frame & FM_PORT_ROUTED_FRAME_UPDATE_SMAC)
+			p[i].update_smac = NET_MAT_PORT_T_FLAG_ENABLED;
+		else
+			p[i].update_smac = NET_MAT_PORT_T_FLAG_DISABLED;
+
 		p[i].port_id = (__u32)cpi;
 		i++;
 	}
@@ -1105,6 +1110,19 @@ static int ies_ports_set(struct net_mat_port *ports)
 			break;
 		case NET_MAT_PORT_T_FLAG_DISABLED:
 			update_frame &= ((fm_uint32)(-1)) ^ FM_PORT_ROUTED_FRAME_UPDATE_DMAC;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		switch (p->update_smac) {
+		case NET_MAT_PORT_T_FLAG_UNSPEC:
+			break;
+		case NET_MAT_PORT_T_FLAG_ENABLED:
+			update_frame |= FM_PORT_ROUTED_FRAME_UPDATE_SMAC;
+			break;
+		case NET_MAT_PORT_T_FLAG_DISABLED:
+			update_frame &= ((fm_uint32)(-1)) ^ FM_PORT_ROUTED_FRAME_UPDATE_SMAC;
 			break;
 		default:
 			return -EINVAL;

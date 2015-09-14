@@ -745,6 +745,7 @@ enum {
 	NET_MAT_PORT_T_UPDATE_TTL,
 	NET_MAT_PORT_T_MCAST_FLOODING,
 	NET_MAT_PORT_T_UPDATE_DMAC,
+	NET_MAT_PORT_T_UPDATE_SMAC,
 	__NET_MAT_PORT_T_MAX,
 };
 #define NET_MAT_PORT_T_MAX (__NET_MAT_PORT_T_MAX - 1)
@@ -777,6 +778,7 @@ struct net_mat_port {
 	enum flag_state update_ttl;
 	enum flag_state mcast_flooding;
 	enum flag_state update_dmac;
+	enum flag_state update_smac;
 	__u32 glort;
 };
 
