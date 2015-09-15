@@ -1510,9 +1510,10 @@ static int match_cmd_get_ports(struct nlmsghdr *nlh)
 		return -EOPNOTSUPP;
 	}
 
-	for (bmax = 0, i = 0; ports[i].port_id != NET_MAT_PORT_ID_UNSPEC; i++)
+	for (bmax = 0, i = 0; ports[i].port_id != NET_MAT_PORT_ID_UNSPEC; i++) {
 		if (ports[i].port_id > bmax)
 			bmax = ports[i].port_id;
+	}
 
 	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
 	if (err) {

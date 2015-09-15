@@ -561,6 +561,7 @@ static int ies_ports_get(struct net_mat_port **ports)
 	fm_switchInfo swInfo;
 	int cpi;
 	int i;
+	fm_uint16 vlan;
 
 	fmGetSwitchInfo(sw, &swInfo);
 
@@ -839,6 +840,36 @@ static int ies_ports_get(struct net_mat_port **ports)
 	/* terminate the port list */
 	p[i].port_id = NET_MAT_PORT_ID_UNSPEC;
 
+	for (vlan = 0; vlan < MAX_VLAN; vlan++) {
+		fm_int *vlan_ports = calloc((size_t) swInfo.numCardPorts + 1,
+			sizeof(fm_int));
+		fm_int max_ports = swInfo.numCardPorts;
+		fm_int i, nports;
+
+		for (i = 0; i < max_ports; i++)
+			vlan_ports[i] = -1;
+
+		fmGetVlanPortList(sw, vlan, &nports, vlan_ports, max_ports);
+
+		for (i = 0; i < max_ports; i++) {
+			uint8_t index;
+			int slot;
+
+			if (vlan_ports[i] < 0)
+				continue;
+
+			for (cpi = 0; cpi < swInfo.numCardPorts; cpi++) {
+				if (p[cpi].port_id == (__u32) vlan_ports[i])
+					break;
+			}
+
+			slot = vlan / 8;
+			index = (uint8_t) (vlan % 8);
+
+			p[cpi].vlan.vlan_membership_bitmask[slot] |= (__u8) (1 << index);
+		}
+	}
+
 	*ports = p;
 
 	return 0;
@@ -969,6 +1000,29 @@ static int ies_ports_set(struct net_mat_port *ports)
 			if (err) {
 				MAT_LOG(ERR, "Error: SetPortAttribute FM_PORT_DEF_VLAN failed!\n");
 				return -EINVAL;
+			}
+		}
+
+		if (p->vlan.vlan_membership_bitmask) {
+			fm_uint16 vlan;
+
+			for (vlan = 0; vlan < MAX_VLAN; vlan++) {
+				int slot = vlan / 8;
+				int index = vlan % 8;
+
+				if (0x1 & (p->vlan.vlan_membership_bitmask[slot] >> index)) {
+					err = fmAddVlanPort(sw, vlan, port, TRUE);
+					if (err != FM_OK)
+						return cleanup("fmAddVlanPort", err);
+
+					MAT_LOG(DEBUG, "add port %i:%d to vlan %u (%i:%i)\n", i, port, vlan, slot, index);
+
+					err = fmSetVlanPortState(sw, vlan, port, FM_STP_STATE_FORWARDING);
+					if (err != FM_OK)
+						return cleanup("fmSetVlanPortState", err);
+				} else {
+					err = fmDeleteVlanPort(sw, vlan, port);
+				}
 			}
 		}
 
@@ -1599,6 +1653,9 @@ int switch_init(bool one_vlan)
 	if (err != FM_OK)
 		return cleanup("fmSetSwitchState", err);
 
+	for (vlan = 0; vlan < MAX_VLAN; vlan++)
+		fmCreateVlan(sw, vlan);
+
 	defvlan = vlan = FM_DEFAULT_VLAN;
 
 	fmGetSwitchInfo(sw, &swInfo);
@@ -1633,9 +1690,6 @@ int switch_init(bool one_vlan)
 		if (!one_vlan) {
 			vlan = (fm_uint16)port;
 			defvlan = (fm_uint32)vlan;
-
-			MAT_LOG(DEBUG, "creating vlan %d\n", vlan);
-			fmCreateVlan(sw, vlan);
 
 			MAT_LOG(DEBUG, "enable vlan reflect on vlan %d\n", vlan);
 			fmSetVlanAttribute(sw, vlan, FM_VLAN_REFLECT, &vr);

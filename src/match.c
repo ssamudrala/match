@@ -267,7 +267,7 @@ static void set_port_usage(void)
 {
 	printf("Usage: %s set_port port NUM [speed NUM] [state NUM] [max_frame_size NUM] "
 	       "[def_vlan NUM] [def_priority NUM] [drop_tagged VAL] [drop_untagged VAL] "
-	       "[loopback VAL] [learning VAL] [update_dscp VAL] [update_ttl VAL]"
+	       "[vlans VLAN[,VLAN...] [loopback VAL] [learning VAL] [update_dscp VAL] [update_ttl VAL]"
 	       "[update_dmac VAL] [update_smac VAL] [update_vlan VAL] [mcast_flooding VAL]\n",
 		progname);
 	printf(" state: up down\n"); 
@@ -277,6 +277,7 @@ static void set_port_usage(void)
 	printf(" def_priority: integer port's default VLAN priority (0 - 7)\n");
 	printf(" drop_tagged: dropping tagged frames on ingress (enabled/disabled)\n");
 	printf(" drop_untagged: dropping untagged frames on ingress (enabled/disabled)\n");
+	printf(" vlans: set vlan membership set (0-4095)\n");
 	printf(" loopback: tx2rx loopback on port (enabled/disabled)\n");
 	printf(" learning: Learning of source addresses on this port (enabled/disabled)\n");
 	printf(" update_dscp: Port may modify the DSCP on outgoing frames (enabled/disabled)\n");
@@ -2442,6 +2443,35 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				fprintf(stderr, "Error: default VLAN priority must be in range [0..7]\n");
 				set_port_usage();
 				return -EINVAL;
+			}
+		} else if (strcmp(*argv, "vlans") == 0) {
+			char *vlan;
+
+			next_arg();
+			vlan = strtok(*argv, ",");
+
+			if (!vlan) {
+				fprintf(stderr, "Error: missing `vlan` value\n");
+				set_port_usage();
+				return -EINVAL;
+			}
+
+			while (vlan) {
+				int vid, slot;
+				__u8 index;
+
+				err = sscanf(vlan, "%i", &vid);
+				if (err < 1 || vid > 4095 || vid < 0) {
+					fprintf(stderr, "Error: invalid `vlan` input: %s\n", vlan);
+					set_port_usage();
+					return -EINVAL;
+				}
+
+				slot = (vid / 8);
+				index = (__u8) (vid % 8);
+
+				port.vlan.vlan_membership_bitmask[slot] |= (__u8) (1 << index);
+				vlan = strtok(NULL, ",");
 			}
 		} else if (strcmp(*argv, "loopback") == 0) {
 			next_arg();
