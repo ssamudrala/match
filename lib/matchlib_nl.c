@@ -50,7 +50,6 @@
 #include <libnl3/netlink/socket.h>
 #include <libnl3/netlink/genl/genl.h>
 #include <libnl3/netlink/genl/ctrl.h>
-#include <libnl3/netlink/route/link.h>
 
 #include <linux/if_ether.h>
 
@@ -59,7 +58,6 @@
 #include "matchlib_nl.h"
 #include "matlog.h"
 
-struct nl_cache *link_cache;
 static int verbose = 0;
 static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_IDENTIFIER_TYPE] = { .type = NLA_U32 },
@@ -71,17 +69,6 @@ static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_TABLE_GRAPH]	= { .type = NLA_NESTED },
 	[NET_MAT_RULES]	= { .type = NLA_NESTED },
 };
-
-static void pfprintf(FILE *fp, bool p, const char *format, ...)
-{
-	va_list args;
-	va_start(args, format);
-
-	if (p)
-		vfprintf(fp, format, args);
-
-	va_end(args);
-}
 
 void match_nl_set_verbose(int new_verbose)
 {
@@ -852,13 +839,11 @@ struct match_msg *match_nl_recv_msg(struct nl_sock *nsd, int *err)
 	return msg;
 }
 
-int match_nl_table_cmd_to_type(FILE *fp, bool print, int valid,
-			      struct nlattr *tb[])
+int match_nl_table_cmd_to_type(FILE *fp __attribute__((unused)),
+                               bool print __attribute__((unused)),
+                               int valid, struct nlattr *tb[])
 {
-	unsigned int type, ifindex;
-	int err;
-	char iface[IFNAMSIZ];
-	struct nl_sock *fd = NULL;
+	unsigned int type;
 
 	if (!tb[NET_MAT_IDENTIFIER_TYPE]) {
 		MAT_LOG(ERR,
@@ -885,31 +870,12 @@ int match_nl_table_cmd_to_type(FILE *fp, bool print, int valid,
 
 	switch (type) {
 	case NET_MAT_IDENTIFIER_IFINDEX:
-		fd = nl_socket_alloc();
-		err = nl_connect(fd, NETLINK_ROUTE);
-		if (err < 0) {
-			MAT_LOG(ERR,"Warning: Unable to connect socket\n");
-			break;
-		}
-		err = rtnl_link_alloc_cache(fd, AF_UNSPEC, &link_cache);
-		if (err < 0) {
-			MAT_LOG(ERR,"Warning: Unable to allocate cache\n");
-			break;
-		}
-		ifindex = nla_get_u32(tb[NET_MAT_IDENTIFIER]);
-		rtnl_link_i2name(link_cache, (int)ifindex, iface, IFNAMSIZ);
-		if (ifindex)
-			pfprintf(fp, print, "%s (%u):\n", iface, ifindex);
 		break;
 	default:
 		MAT_LOG(ERR, "Warning: unknown interface identifier type %i\n", type);
 		break;
 	}
 
-	if (fd) {
-                nl_close(fd);
-                nl_socket_free(fd);
-        }
 	return 0;
 }
 

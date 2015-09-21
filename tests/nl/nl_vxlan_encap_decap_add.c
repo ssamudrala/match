@@ -17,7 +17,6 @@
 #include <libnl3/netlink/socket.h>
 #include <libnl3/netlink/genl/genl.h>
 #include <libnl3/netlink/genl/ctrl.h>
-#include <libnl3/netlink/cli/utils.h>
 
 #include "if_match.h"
 #include "matchlib.h"

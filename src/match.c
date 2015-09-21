@@ -49,7 +49,6 @@
 #include <libnl3/netlink/socket.h>
 #include <libnl3/netlink/genl/genl.h>
 #include <libnl3/netlink/genl/ctrl.h>
-#include <libnl3/netlink/route/link.h>
 
 #include <linux/if_ether.h>
 
@@ -299,8 +298,6 @@ static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_RULES]	= { .type = NLA_NESTED },
 	[NET_MAT_PORTS]	= { .type = NLA_NESTED },
 };
-
-struct nl_cache *link_cache;
 
 /*
  * Parse a MAC address
@@ -2732,7 +2729,6 @@ int main(int argc, char **argv)
 	uint32_t pid = 0;
 	int verbose = 1;
 	bool resolve_names = true;
-	struct nl_sock *fd = NULL;
 	int opt;
 	int args = 1;
 	int opt_index = 0;
@@ -2840,30 +2836,14 @@ int main(int argc, char **argv)
 		cmd = NET_MAT_PORT_CMD_SET_PORTS;
 	} else {
 		match_usage();
-		return 0;
-	}
-
-	/* Build cache to translate netdev's to names */
-	fd = nl_socket_alloc();
-	err = nl_connect(fd, NETLINK_ROUTE);
-	if (err < 0) {
-		nl_perror(err, "Unable to connect socket\n");
-		return err;
-	}
-
-	err = rtnl_link_alloc_cache(fd, AF_UNSPEC, &link_cache);
-	if (err < 0) {
-		nl_perror(err, "Unable to allocate cache\n");
-		return err;
-	}
-
-	if (fd) {
-		nl_close(fd);
-		nl_socket_free(fd);
+		err = -EINVAL;
+		goto out;
 	}
 
 	/* Get the family */
 	if (family < 0) {
+		struct nl_sock *fd = NULL;
+
 		fd = nl_socket_alloc();
 		genl_connect(fd);
 
@@ -2936,9 +2916,5 @@ int main(int argc, char **argv)
 		break;
 	}
 out:
-	if (fd) {
-		nl_close(fd);
-		nl_socket_free(fd);
-	}
 	return 0;
 }
