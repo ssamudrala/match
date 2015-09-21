@@ -2390,6 +2390,10 @@ int switch_create_TCAM_table(__u32 table_id, struct net_mat_field_ref *matches, 
 				condition |= FM_FLOW_MATCH_L4_DST_PORT;
 				condition |= FM_FLOW_MATCH_PROTOCOL;
 				break;
+			case HEADER_TCP_FLAGS:
+				condition |= FM_FLOW_MATCH_TCP_FLAGS;
+				condition |= FM_FLOW_MATCH_PROTOCOL;
+				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_TCP, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;
@@ -3160,6 +3164,19 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				MAT_LOG(DEBUG, "%s: match L4_DST_PORT(%d/0x%04x)\n", __func__,
                                         condVal.L4DstStart, condVal.L4DstMask);
 #endif /* DEBUG */
+				break;
+			case HEADER_TCP_FLAGS:
+				cond |= FM_FLOW_MATCH_TCP_FLAGS;
+				/* only allow FIN|SYN|RST|PSH|ACK|URG flags */
+				if (matches[i].v.u8.value_u8 & 0xC0) {
+					MAT_LOG(ERR, "Invalid TCP Flags (0x%02x)\n",
+					        matches[i].v.u8.value_u8);
+					return -EINVAL;
+				}
+				condVal.tcpFlags = matches[i].v.u8.value_u8;
+				condVal.tcpFlagsMask = matches[i].v.u8.mask_u8;
+				MAT_LOG(DEBUG, "%s: match TCP_FLAGS(0x%02x/0x%02x)\n", __func__,
+				        condVal.tcpFlags, condVal.tcpFlagsMask);
 				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_TCP/UDP, field=%d\n", __func__, matches[i].field);

@@ -394,13 +394,13 @@ static struct net_mat_field tcp_fields[10] = {
 	},
 	{ .name = reserved,
 	  .uid = HEADER_TCP_RESERVED,
-	  .bitwidth = 3},
+	  .bitwidth = 6},
 	{ .name = flags,
 	  .uid = HEADER_TCP_FLAGS,
-	  .bitwidth = 9},
+	  .bitwidth = 6},
 	{ .name = window,
 	  .uid = HEADER_TCP_WINDOW,
-	  .bitwidth = 8,},
+	  .bitwidth = 16,},
 	{ .name = csum_str,
 	  .uid = HEADER_TCP_CSUM,
 	  .bitwidth = 16,},
@@ -1184,12 +1184,10 @@ static struct net_mat_field_ref matches_tcam[] = {
 	  .field = HEADER_TCP_DST_PORT,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
-#ifdef NOT_IMPLEMENTED
 	{ .instance = HEADER_INSTANCE_TCP,
 	  .header = HEADER_TCP,
 	  .field = HEADER_TCP_FLAGS,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
-#endif /* NOT_IMPLEMENTED */
 
 	{ .instance = HEADER_INSTANCE_UDP,
 	  .header = HEADER_UDP,
