@@ -1380,6 +1380,7 @@ get_attrib_arg(int argc, char **argv, __u32 table_uid, struct net_mat_named_valu
 	}
 
 	value->uid = ref[i].uid;
+	value->name = ref[i].name;
 
 	if (!ref[i].write) {
 		fprintf(stderr, "Error: table (%i) does not support setting %s\n",
