@@ -1125,7 +1125,6 @@ static struct net_mat_field_ref matches_tcam[] = {
 	  .field = HEADER_ETHERNET_ETHERTYPE,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
-#ifdef NOT_IMPLEMENTED
 	{ .instance = HEADER_INSTANCE_VLAN_OUTER,
 	  .header = HEADER_VLAN,
 	  .field = HEADER_VLAN_PCP,
@@ -1135,7 +1134,6 @@ static struct net_mat_field_ref matches_tcam[] = {
 	  .header = HEADER_VLAN,
 	  .field = HEADER_VLAN_CFI,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
-#endif /* NOT_IMPLEMENTED */
 
 	{ .instance = HEADER_INSTANCE_VLAN_OUTER,
 	  .header = HEADER_VLAN,

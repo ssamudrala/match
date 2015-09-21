@@ -2334,6 +2334,12 @@ int switch_create_TCAM_table(__u32 table_id, struct net_mat_field_ref *matches, 
 			case HEADER_VLAN_VID:
 				condition |= FM_FLOW_MATCH_VLAN;
 				break;
+			case HEADER_VLAN_PCP:
+				condition |= FM_FLOW_MATCH_VLAN_PRIORITY;
+				break;
+			case HEADER_VLAN_CFI:
+				condition |= FM_FLOW_MATCH_VLAN_PRIORITY;
+				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_VLAN, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;
@@ -3010,6 +3016,23 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				condVal.vlanIdMask = matches[i].v.u16.mask_u16;
 #ifdef DEBUG
 				MAT_LOG(DEBUG, "%s: match VLAN(0x%04x:0x%04x)\n", __func__, condVal.vlanId, condVal.vlanIdMask);
+#endif /* DEBUG */
+				break;
+			case HEADER_VLAN_PCP:
+				cond |= FM_FLOW_MATCH_VLAN_PRIORITY;
+				condVal.vlanPri |= (fm_byte)((matches[i].v.u8.value_u8 & 0x07) << 1);
+				condVal.vlanPriMask |= (fm_byte)((matches[i].v.u8.mask_u8 & 0x07) << 1);
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match PCP(0x%08x:0x%08x)\n", __func__, ((condVal.vlanPri & 0x0E) >> 1),
+						((condVal.vlanPriMask & 0x0E) >> 1));
+#endif /* DEBUG */
+				break;
+			case HEADER_VLAN_CFI:
+				cond |= FM_FLOW_MATCH_VLAN_PRIORITY;
+				condVal.vlanPri = (fm_byte)(condVal.vlanPri | (matches[i].v.u8.value_u8 & 0x01));
+				condVal.vlanPriMask = (fm_byte)(condVal.vlanPriMask | (matches[i].v.u8.mask_u8 & 0x01));
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match CFI(0x%08x:0x%08x)\n", __func__, (condVal.vlanPri & 0x01), (condVal.vlanPriMask & 0x01));
 #endif /* DEBUG */
 				break;
 			default:
