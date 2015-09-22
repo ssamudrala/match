@@ -37,6 +37,8 @@ struct match_msg {
 	uint32_t seq;
 };
 
+void match_nl_set_verbose(int new_verbose);
+
 struct nl_sock *match_nl_get_socket(void);
 
 uint32_t match_pid_lookup(void);

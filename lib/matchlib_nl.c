@@ -60,7 +60,7 @@
 #include "matlog.h"
 
 struct nl_cache *link_cache;
-int verbose = 0;
+static int verbose = 0;
 static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_IDENTIFIER_TYPE] = { .type = NLA_U32 },
 	[NET_MAT_IDENTIFIER]	= { .type = NLA_U32 },
@@ -81,6 +81,11 @@ static void pfprintf(FILE *fp, bool p, const char *format, ...)
 		vfprintf(fp, format, args);
 
 	va_end(args);
+}
+
+void match_nl_set_verbose(int new_verbose)
+{
+	verbose = new_verbose;
 }
 
 void match_nl_free_msg(struct match_msg *msg)
@@ -321,7 +326,7 @@ int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
 	sigset_t bs;
 	int err = 0;
 
-	pp_rule(stdout, true, rule);
+	pp_rule(stdout, verbose, rule);
 
 	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
 	if (!msg) {
