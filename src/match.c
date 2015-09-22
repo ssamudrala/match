@@ -2468,7 +2468,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				slot = (vid / 8);
 				index = (__u8) (vid % 8);
 
-				port.vlan.vlan_membership_bitmask[slot] |= (__u8) (1 << index);
+				port.vlan.vlan_membership_bitmask[slot] |= (__u8) (1UL << index);
 				vlan = strtok(NULL, ",");
 			}
 		} else if (strcmp(*argv, "loopback") == 0) {

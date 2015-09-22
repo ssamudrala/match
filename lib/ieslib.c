@@ -869,7 +869,7 @@ static int ies_ports_get(struct net_mat_port **ports)
 			slot = vlan / 8;
 			index = (uint8_t) (vlan % 8);
 
-			p[cpi].vlan.vlan_membership_bitmask[slot] |= (__u8) (1 << index);
+			p[cpi].vlan.vlan_membership_bitmask[slot] |= (__u8) (1UL << index);
 		}
 	}
 
