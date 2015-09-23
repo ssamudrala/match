@@ -846,8 +846,10 @@ static int ies_ports_get(struct net_mat_port **ports)
 		fm_int max_ports = swInfo.numCardPorts;
 		fm_int i, nports;
 
-		if (!vlan_ports)
+		if (!vlan_ports) {
+			free(p);
 			return -ENOMEM;
+		}
 
 		for (i = 0; i < max_ports; i++)
 			vlan_ports[i] = -1;
