@@ -199,7 +199,7 @@ struct net_mat_action *get_actions(unsigned int uid)
 		return NULL;
 }
 
-unsigned find_table(char *name)
+unsigned find_table(const char *name)
 {
 	unsigned int i;
 
@@ -211,7 +211,7 @@ unsigned find_table(char *name)
 	return 0;
 }
 
-unsigned int find_action(char *name)
+unsigned int find_action(const char *name)
 {
 	unsigned int i;
 
@@ -222,7 +222,7 @@ unsigned int find_action(char *name)
 	return 0;
 }
 
-unsigned int find_header_node(char *name)
+unsigned int find_header_node(const char *name)
 {
 	unsigned int i;
 
@@ -233,7 +233,7 @@ unsigned int find_header_node(char *name)
 	return 0;
 }
 
-unsigned int find_field(char *field, unsigned int hdr)
+unsigned int find_field(const char *field, unsigned int hdr)
 {
 	struct net_mat_hdr *header;
 	unsigned int i;
@@ -252,7 +252,7 @@ unsigned int find_field(char *field, unsigned int hdr)
 	return 0;
 }
 
-int find_match(char *header, char *field, unsigned int *hi, unsigned int *li)
+int find_match(const char *header, const char *field, unsigned int *hi, unsigned int *li)
 {
 	unsigned int i;
 

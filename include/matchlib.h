@@ -106,11 +106,11 @@ void match_push_graph_nodes(struct net_mat_hdr_node **n);
 
 void match_pop_tables(struct net_mat_tbl **t);
 
-int find_match(char *header, char *field, unsigned int *hi, unsigned int *li);
-unsigned int find_action(char *name);
-unsigned int find_table(char *name);
-unsigned int find_header_node(char *name);
-unsigned int find_field(char *name, unsigned int hdr);
+int find_match(const char *header, const char *field, unsigned int *hi, unsigned int *li);
+unsigned int find_action(const char *name);
+unsigned int find_table(const char *name);
+unsigned int find_header_node(const char *name);
+unsigned int find_field(const char *name, unsigned int hdr);
 
 void pp_action(FILE *fp, int p, struct net_mat_action *ref,
 	       bool print_values);
