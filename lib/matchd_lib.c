@@ -800,7 +800,8 @@ match_is_valid_mask(struct net_mat_field_ref *fref,
 {
 	struct net_mat_field *field;
 	__u64 mask;
-	int err = 0;
+	struct in6_addr mask_in6;
+	int err = 0, i;
 
 	if (fref->mask_type == NET_MAT_MASK_TYPE_EXACT) {
 		field = get_fields(fr->header, fr->field);
@@ -810,6 +811,8 @@ match_is_valid_mask(struct net_mat_field_ref *fref,
 		}
 
 		mask = (1ULL << field->bitwidth) - 1;
+		for (i = 0; i < 4; i++)
+			mask_in6.s6_addr32[i] = (__u32)-1;
 
 		switch(fr->type) {
 		case NET_MAT_FIELD_REF_ATTR_TYPE_U8:
@@ -823,6 +826,16 @@ match_is_valid_mask(struct net_mat_field_ref *fref,
 			break;
 		case NET_MAT_FIELD_REF_ATTR_TYPE_U64:
 			err = (fr->v.u64.mask_u64 == mask) ? 0 : -EINVAL;
+			break;
+		case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+			err = 0;
+			for (i = 0; i < 4; i++) {
+				if ((fr->v.in6.mask_in6).s6_addr32[i] != mask_in6.s6_addr32[i]) {
+					err = -EINVAL;
+					MAT_LOG(ERR, "IPV6 mask for match is not exact\n");
+					break;
+				}
+			}
 			break;
 		default:
 			err = -EINVAL;

@@ -1220,6 +1220,22 @@ int match_get_field(FILE *fp, int print, struct nlattr *nla,
 		}
 		field->v.u64.mask_u64 = nla_get_u64(ref[NET_MAT_FIELD_REF_MASK]);
 		break;
+	case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+		if (nla_len(ref[NET_MAT_FIELD_REF_VALUE]) < (int)sizeof(struct in6_addr)) {
+			err = -EINVAL;
+			break;
+		}
+		field->v.in6.value_in6 = *((struct in6_addr *)nla_data(ref[NET_MAT_FIELD_REF_VALUE]));
+
+		if (!ref[NET_MAT_FIELD_REF_MASK])
+			break;
+
+		if (nla_len(ref[NET_MAT_FIELD_REF_MASK]) < (int)sizeof(struct in6_addr)) {
+			err = -EINVAL;
+			break;
+		}
+		field->v.in6.mask_in6 = *((struct in6_addr *)nla_data(ref[NET_MAT_FIELD_REF_MASK]));
+		break;
 	default:
 		err = -EINVAL;
 		break;
@@ -2556,6 +2572,13 @@ int match_put_field_ref(struct nl_msg *nlbuf, struct net_mat_field_ref *ref)
 	case NET_MAT_FIELD_REF_ATTR_TYPE_U64:
 		if (nla_put_u64(nlbuf, NET_MAT_FIELD_REF_VALUE, ref->v.u64.value_u64) ||
 		    nla_put_u64(nlbuf, NET_MAT_FIELD_REF_MASK, ref->v.u64.mask_u64))
+			return -EMSGSIZE;
+		break;
+	case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
+		if (nla_put(nlbuf, NET_MAT_FIELD_REF_VALUE,
+				sizeof(struct in6_addr), &ref->v.in6.value_in6.s6_addr32[0]) ||
+		    nla_put(nlbuf, NET_MAT_FIELD_REF_MASK,
+				sizeof(struct in6_addr), &ref->v.in6.mask_in6.s6_addr32[0]))
 			return -EMSGSIZE;
 		break;
 	default:
