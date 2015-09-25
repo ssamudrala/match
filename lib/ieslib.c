@@ -1636,6 +1636,7 @@ int switch_init(bool one_vlan)
 	fm_bool		re = FM_ENABLED;
 	fm_bool		pi = FM_DISABLED;
 	fm_int		pc = FM_PORT_PARSER_STOP_AFTER_L4;
+	fm_int		le = FM_DISABLED; /* disable FM_PORT_LEARNING */
 	fm_uint32	defvlan;
 	fm_int          fs = MATCH_DEFAULT_MAX_FRAME_SIZE;
 	fm_logCallBackSpec logCallBackSpec;
@@ -1765,6 +1766,12 @@ int switch_init(bool one_vlan)
 			MAT_LOG(DEBUG, "set FM_PORT_MAX_FRAME_SIZE for port %d to %d\n", port, fs);
 		} else
 			MAT_LOG(DEBUG, "not setting FM_PORT_MAX_FRAME_SIZE for port %d\n", port);
+
+		err = fmSetPortAttribute(sw, port, FM_PORT_LEARNING, &le);
+		if (err != FM_OK)
+			return cleanup("fmSetPortAttribute", err);
+
+		MAT_LOG(DEBUG, "set FM_PORT_LEARNING for port %d to %d\n", port, le);
 	}
 
 	/* port cpu port on default vlan */
