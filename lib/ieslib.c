@@ -957,6 +957,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool update_dscp = FM_DISABLED;
 	fm_bool update_ttl = FM_DISABLED;
 	fm_bool mcast_flooding = FM_DISABLED;
+	fm_bool is_pcie_port = FALSE;
 	fm_uint32 update_frame;
 	int i, err = 0;
 
@@ -965,6 +966,12 @@ static int ies_ports_set(struct net_mat_port *ports)
 	for (p = &ports[0], i = 0; p->port_id != NET_MAT_PORT_ID_UNSPEC;
 	     p = &ports[i], i++) {
 		fm_int port = (int)p->port_id;
+
+		err = fmIsPciePort(sw, port, &is_pcie_port);
+		if (err) {
+			MAT_LOG(ERR, "Error: IsPciePort failed!\n");
+			return -EINVAL;
+		}
 
 		switch (p->state) {
 		case NET_MAT_PORT_T_STATE_UNSPEC:
@@ -1013,13 +1020,14 @@ static int ies_ports_set(struct net_mat_port *ports)
 
 		if (p->vlan.vlan_membership_bitmask) {
 			fm_uint16 vlan;
+			fm_bool tag = !is_pcie_port;
 
 			for (vlan = 0; vlan < MAX_VLAN; vlan++) {
 				int slot = vlan / 8;
 				int index = vlan % 8;
 
 				if (0x1 & (p->vlan.vlan_membership_bitmask[slot] >> index)) {
-					err = fmAddVlanPort(sw, vlan, port, TRUE);
+					err = fmAddVlanPort(sw, vlan, port, tag);
 					if (err != FM_OK)
 						return cleanup("fmAddVlanPort", err);
 
