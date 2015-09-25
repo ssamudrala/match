@@ -57,6 +57,9 @@
 #define MATCH_NSH_PORT 4790
 #define MATCH_VXLAN_GPE_NSH_PROTO 4
 
+/* default max frame size for Ethernet ports (not pcie, fibm, or te ports) */
+#define MATCH_DEFAULT_MAX_FRAME_SIZE 10240
+
 /* whether ies tagging is disabled on switch init for all host interfaces */
 #ifndef MATCH_DISABLE_IES_TAGGING
 #define MATCH_DISABLE_IES_TAGGING 1
@@ -1634,6 +1637,7 @@ int switch_init(bool one_vlan)
 	fm_bool		pi = FM_DISABLED;
 	fm_int		pc = FM_PORT_PARSER_STOP_AFTER_L4;
 	fm_uint32	defvlan;
+	fm_int          fs = MATCH_DEFAULT_MAX_FRAME_SIZE;
 	fm_logCallBackSpec logCallBackSpec;
 #ifdef VXLAN_MCAST
 	int		i;
@@ -1675,6 +1679,9 @@ int switch_init(bool one_vlan)
 	/* init non cpu ports and put them into their own vlan, make sure */
 	/* the parser goes to l4, no vlan boundary check, and routable    */
 	for (cpi = 1 ; cpi < swInfo.numCardPorts ; cpi++) {
+		fm_bool is_pcie = FALSE;
+		fm_bool is_fibm = FALSE;
+
 		err = fmMapCardinalPort(sw, cpi, &port, NULL);
 		if (err != FM_OK)
 			return cleanup("fmMapCardinalPort", err);
@@ -1691,6 +1698,14 @@ int switch_init(bool one_vlan)
 			MAT_LOG(DEBUG, "skip internal port %d\n", port);
 			continue;
 		}
+
+		err = fmIsPciePort(sw, port, &is_pcie);
+		if (err != FM_OK)
+			return cleanup("fmIsPciePort", err);
+
+		err = fmIsSpecialPort(sw, port, &is_fibm);
+		if (err != FM_OK)
+			return cleanup("fmIsSpecialPort", err);
 
 		if (!one_vlan) {
 			vlan = (fm_uint16)port;
@@ -1741,6 +1756,15 @@ int switch_init(bool one_vlan)
 			return cleanup("fmSetPortAttribute", err);
 
 		MAT_LOG(DEBUG, "set FM_PORT_ROUTABLE for port %d to %d\n", port, re);
+
+		if (!is_fibm && !is_pcie) {
+			err = fmSetPortAttribute(sw, port, FM_PORT_MAX_FRAME_SIZE, &fs);
+			if (err != FM_OK)
+				return cleanup("fmSetPortAttribute", err);
+
+			MAT_LOG(DEBUG, "set FM_PORT_MAX_FRAME_SIZE for port %d to %d\n", port, fs);
+		} else
+			MAT_LOG(DEBUG, "not setting FM_PORT_MAX_FRAME_SIZE for port %d\n", port);
 	}
 
 	/* port cpu port on default vlan */
