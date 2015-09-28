@@ -3606,6 +3606,24 @@ int switch_create_TE_table(int te, __u32 table_id, struct net_mat_field_ref *mat
 			}
 
 			break;
+		case HEADER_INSTANCE_IPV6:
+			switch (matches[i].field) {
+			case HEADER_IPV6_SRC_IP:
+				condition |= FM_FLOW_MATCH_SRC_IP;
+				break;
+			case HEADER_IPV6_DST_IP:
+				condition |= FM_FLOW_MATCH_DST_IP;
+				break;
+			case HEADER_IPV6_NEXT_HEADER:
+				condition |= FM_FLOW_MATCH_PROTOCOL;
+				break;
+			default:
+				MAT_LOG(ERR, "%s: match error in HEADER_IPV6, field=%d\n", __func__, matches[i].field);
+				err = -EINVAL;
+				break;
+			}
+
+			break;
 		case HEADER_INSTANCE_UDP:
 			switch (matches[i].field) {
 			case HEADER_UDP_SRC_PORT:
@@ -3939,6 +3957,14 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 				}
 #endif /* DEBUG */
 
+				break;
+			case HEADER_IPV6_NEXT_HEADER:
+				cond |= FM_FLOW_MATCH_PROTOCOL;
+				condVal.protocol = (fm_byte)matches[i].v.u8.value_u8;
+				condVal.protocolMask = (fm_byte)matches[i].v.u8.mask_u8;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match PROTOCOL(0x%08x:0x%08x)\n", __func__, condVal.protocol, condVal.protocolMask);
+#endif /* DEBUG */
 				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_IPV6, field=%d\n", __func__, matches[i].field);

@@ -1071,6 +1071,21 @@ static struct net_mat_field_ref matches_tunnel_engine[] = {
 	  .field = HEADER_IPV4_DST_IP,
 	  .mask_type = NET_MAT_MASK_TYPE_EXACT},
 
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_SRC_IP,
+	  .mask_type = NET_MAT_MASK_TYPE_EXACT},
+
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_DST_IP,
+	  .mask_type = NET_MAT_MASK_TYPE_EXACT},
+
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_NEXT_HEADER,
+	  .mask_type = NET_MAT_MASK_TYPE_EXACT},
+
 	{ .instance = HEADER_INSTANCE_UDP,
 	  .header = HEADER_UDP,
 	  .field = HEADER_UDP_SRC_PORT,
