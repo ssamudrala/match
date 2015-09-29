@@ -44,6 +44,7 @@ static char dst_mac[] =  "dst_mac";
 static char ethertype[] =  "ethertype";
 static char ether_str[] =  "ethernet";
 static char ether_inner_str[] =  "ethernet_inner";
+static char tpid[] = "tpid";
 static char pcp[] = "pcp";
 static char cfi[] = "cfi";
 static char vid[] = "vid";
@@ -217,7 +218,7 @@ static struct net_mat_field vlan_fields[4] = {
 	{ .name = pcp, .uid = HEADER_VLAN_PCP, .bitwidth = 3,},
 	{ .name = cfi, .uid = HEADER_VLAN_CFI, .bitwidth = 1,},
 	{ .name = vid, .uid = HEADER_VLAN_VID, .bitwidth = 12,},
-	{ .name = ethertype, .uid = HEADER_VLAN_ETHERTYPE, .bitwidth = 16,},
+	{ .name = tpid, .uid = HEADER_VLAN_ETHERTYPE, .bitwidth = 16,},
 };
 
 static struct net_mat_hdr vlan = {
@@ -1164,12 +1165,12 @@ static struct net_mat_field_ref matches_tcam[] = {
 	  .field = HEADER_VLAN_VID,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
-#ifdef NOT_IMPLEMENTED
 	{ .instance = HEADER_INSTANCE_VLAN_OUTER,
 	  .header = HEADER_VLAN,
 	  .field = HEADER_VLAN_ETHERTYPE,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
+#ifdef NOT_IMPLEMENTED
 	{ .instance = HEADER_INSTANCE_IPV4,
 	  .header = HEADER_IPV4,
 	  .field = HEADER_IPV4_TTL,

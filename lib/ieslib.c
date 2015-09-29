@@ -2381,6 +2381,9 @@ int switch_create_TCAM_table(__u32 table_id, struct net_mat_field_ref *matches, 
 			case HEADER_VLAN_CFI:
 				condition |= FM_FLOW_MATCH_VLAN_PRIORITY;
 				break;
+			case HEADER_VLAN_ETHERTYPE:
+				condition |= FM_FLOW_MATCH_VLAN_TAG_TYPE;
+				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_VLAN, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;
@@ -3074,6 +3077,13 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				condVal.vlanPriMask = (fm_byte)(condVal.vlanPriMask | (matches[i].v.u8.mask_u8 & 0x01));
 #ifdef DEBUG
 				MAT_LOG(DEBUG, "%s: match CFI(0x%08x:0x%08x)\n", __func__, (condVal.vlanPri & 0x01), (condVal.vlanPriMask & 0x01));
+#endif /* DEBUG */
+				break;
+			case HEADER_VLAN_ETHERTYPE:
+				cond |= FM_FLOW_MATCH_VLAN_TAG_TYPE;
+				condVal.vlanTag = matches[i].v.u16.value_u16;
+#ifdef DEBUG
+				MAT_LOG(DEBUG, "%s: match TPID(0x%04x)\n", __func__, condVal.vlanTag);
 #endif /* DEBUG */
 				break;
 			default:
