@@ -1776,7 +1776,7 @@ match_get_table_field(FILE *fp __unused, int print __unused, struct nlattr *nl,
 	for (i = nla_data(nl); nla_ok(i, rem); i = nla_next(i, &rem))
 		count++;
 
-	hdr->fields = calloc(count + 1, sizeof(struct net_mat_hdr));
+	hdr->fields = calloc(count + 1, sizeof(hdr->fields[0]));
 	if (!hdr->fields) {
 		MAT_LOG(ERR, "%s: Unable to allocate memory\n", __func__);
 		err = -ENOMEM;
@@ -1832,7 +1832,7 @@ int match_get_headers(FILE *fp, int print, struct nlattr *nl,
 	for (i = nla_data(nl); nla_ok(i, rem); i = nla_next(i, &rem))
 		count++;
 
-	h = calloc(count + 1, sizeof(struct net_mat_hdr));
+	h = calloc(count + 1, sizeof(h[0]));
 	if (!h) {
 		MAT_LOG(ERR, "Unable to allocate memory\n");
 		err = -ENOMEM;
@@ -1854,7 +1854,7 @@ int match_get_headers(FILE *fp, int print, struct nlattr *nl,
 			goto out;
 		}
 
-		header = calloc(1, sizeof(struct net_mat_hdr));
+		header = calloc(1, sizeof(*header));
 		if (!header) {
 			MAT_LOG(ERR, "Warning OOM in header parser. aborting.\n");
 			err = -ENOMEM;
