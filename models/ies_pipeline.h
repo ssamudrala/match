@@ -126,6 +126,7 @@ static char set_tcp_port_dst_port_str[] = "set_tcp_dst_port";
 static char count_str[] = "count";
 static char set_vlan_str[] = "set_vlan";
 static char push_vlan_str[] = "push_vlan";
+static char pop_vlan_str[] = "pop_vlan";
 static char normal_str[] = "normal";
 static char trap_str[] = "trap";
 static char forward_to_te_a_str[] = "forward_to_tunnel_engine_A";
@@ -604,6 +605,7 @@ enum ies_pipeline_action_ids {
 	ACTION_TUNNEL_ENCAP_NSH,
 	ACTION_TUNNEL_DECAP_NSH,
 	ACTION_PUSH_VLAN,
+	ACTION_POP_VLAN,
 };
 
 static struct net_mat_action_arg set_egress_port_args[] = {
@@ -837,6 +839,12 @@ static struct net_mat_action push_vlan = {
 	.args = vlan_args,
 };
 
+static struct net_mat_action pop_vlan = {
+        .name = pop_vlan_str,
+        .uid = ACTION_POP_VLAN,
+        .args = NULL,
+};
+
 static struct net_mat_action_arg tunnel_encap_args[] = {
 	{ .name = dst_ip,
 	  .type = NET_MAT_ACTION_ARG_TYPE_U32,},
@@ -947,6 +955,7 @@ static struct net_mat_action *my_action_list[] = {
 	&count,
 	&set_vlan,
 	&push_vlan,
+	&pop_vlan,
 	&tunnel_encap,
 	&tunnel_decap,
 	&forward_to_te_a,
@@ -1239,6 +1248,7 @@ static __u32 actions_tcam[] = {ACTION_SET_EGRESS_PORT, ACTION_ROUTE_VIA_ECMP,
 			       ACTION_PERMIT,
 			       ACTION_DENY,
 			       ACTION_SET_VLAN, ACTION_PUSH_VLAN,
+			       ACTION_POP_VLAN,
 			       ACTION_NORMAL, ACTION_TRAP,
 			       ACTION_FORWARD_TO_TE_A, ACTION_FORWARD_TO_TE_B,
 			       ACTION_FORWARD_DIRECT_TO_TE_A,

@@ -3421,6 +3421,14 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 			MAT_LOG(DEBUG, "%s: action PUSH_VLAN(%d)\n", __func__, param.vlan);
 #endif /* DEBUG */
 			break;
+		case ACTION_POP_VLAN:
+			act |= FM_FLOW_ACTION_POP_VLAN;
+			act |= FM_FLOW_ACTION_SET_VLAN;
+			param.vlan = FM_DEFAULT_VLAN;
+#ifdef DEBUG
+			MAT_LOG(DEBUG, "%s: action POP_VLAN\n", __func__);
+#endif /* DEBUG */
+			break;
 		case ACTION_NORMAL:
 			act |= FM_FLOW_ACTION_FORWARD_NORMAL;
 #ifdef DEBUG
