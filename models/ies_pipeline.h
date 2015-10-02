@@ -940,10 +940,10 @@ static struct net_mat_action_arg tunnel_encap_nsh_args[] = {
 	  .type = NET_MAT_ACTION_ARG_TYPE_U16,},
 	{ .name = dst_port,
 	  .type = NET_MAT_ACTION_ARG_TYPE_U16,},
-	{ .name = service_index,
-	  .type = NET_MAT_ACTION_ARG_TYPE_U32,},
 	{ .name = service_path_id,
-	  .type = NET_MAT_ACTION_ARG_TYPE_U16,},
+	  .type = NET_MAT_ACTION_ARG_TYPE_U32,},
+	{ .name = service_index,
+	  .type = NET_MAT_ACTION_ARG_TYPE_U8,},
 	{ .name = empty,
 	  .type = NET_MAT_ACTION_ARG_TYPE_UNSPEC,},
 };

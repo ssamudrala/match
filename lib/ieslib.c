@@ -3821,7 +3821,7 @@ int switch_del_TE_table(__u32 table_id)
 
 static void
 set_nsh_encap_action(__u32 dst_ip, __u32 src_ip, __u32 vni, __u16 src_port,
-		     __u16 dst_port, __u32 service_index, __u8 service_path_id,
+		     __u16 dst_port, __u32 service_path_id, __u8 service_index,
 		     fm_flowAction *act, fm_flowParam *param)
 {
 	*act |= FM_FLOW_ACTION_ENCAP_SIP |
@@ -3848,7 +3848,7 @@ set_nsh_encap_action(__u32 dst_ip, __u32 src_ip, __u32 vni, __u16 src_port,
 	param->outerNgeData[0] = 0x00060103;
 
 	/* NSH Service Path Header is NgeData[1] */
-	param->outerNgeData[1] = (service_index << 8) | service_path_id;
+	param->outerNgeData[1] = (service_path_id << 8) | service_index;
 
 	/* remaining fields are zero */
 	param->outerNgeData[2] = 0x0;
