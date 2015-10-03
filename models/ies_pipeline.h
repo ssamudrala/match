@@ -116,10 +116,13 @@ static char route_str[] = "route";
 static char mac_address[] = "mac_address";
 static char set_dst_mac_str[] = "set_dst_mac";
 static char set_src_mac_str[] = "set_src_mac";
-static char set_ip_addr_args[] = "ip_address";
+static char set_ipv4_addr_args[] = "ipv4_address";
+static char set_ipv6_addr_args[] = "ipv6_address";
 static char set_port_args_str[] = "port";
 static char set_ipv4_dst_ip_str[] = "set_ipv4_dst_ip";
 static char set_ipv4_src_ip_str[] = "set_ipv4_src_ip";
+static char set_ipv6_dst_ip_str[] = "set_ipv6_dst_ip";
+static char set_ipv6_src_ip_str[] = "set_ipv6_src_ip";
 static char set_udp_port_src_port_str[] = "set_udp_src_port";
 static char set_udp_port_dst_port_str[] = "set_udp_dst_port";
 static char set_tcp_port_src_port_str[] = "set_tcp_src_port";
@@ -582,6 +585,8 @@ enum ies_pipeline_action_ids {
 	ACTION_SET_VLAN,
 	ACTION_SET_IPV4_DST_IP,
 	ACTION_SET_IPV4_SRC_IP,
+	ACTION_SET_IPV6_DST_IP,
+	ACTION_SET_IPV6_SRC_IP,
 	ACTION_SET_TCP_DST_PORT,
 	ACTION_SET_TCP_SRC_PORT,
 	ACTION_SET_UDP_DST_PORT,
@@ -692,23 +697,42 @@ static struct net_mat_action set_src_mac = {
 	.args = set_mac_args,
 };
 
-static struct net_mat_action_arg set_ip_args[] = {
-	{ .name = set_ip_addr_args,
+static struct net_mat_action_arg set_ipv4_args[] = {
+	{ .name = set_ipv4_addr_args,
 	  .type = NET_MAT_ACTION_ARG_TYPE_U32,},
 	{ .name = empty,
 	  .type = NET_MAT_ACTION_ARG_TYPE_UNSPEC,},
 };
 
+static struct net_mat_action_arg set_ipv6_args[] = {
+	{ .name = set_ipv6_addr_args,
+	  .type = NET_MAT_ACTION_ARG_TYPE_IN6,},
+	{ .name = empty,
+	  .type = NET_MAT_ACTION_ARG_TYPE_UNSPEC,}
+};
+
 static struct net_mat_action set_ipv4_dst_ip = {
 	.name = set_ipv4_dst_ip_str,
 	.uid = ACTION_SET_IPV4_DST_IP,
-	.args = set_ip_args,
+	.args = set_ipv4_args,
 };
 
 static struct net_mat_action set_ipv4_src_ip = {
 	.name = set_ipv4_src_ip_str,
 	.uid = ACTION_SET_IPV4_SRC_IP,
-	.args = set_ip_args,
+	.args = set_ipv4_args,
+};
+
+static struct net_mat_action set_ipv6_dst_ip = {
+	.name = set_ipv6_dst_ip_str,
+	.uid = ACTION_SET_IPV6_DST_IP,
+	.args = set_ipv6_args,
+};
+
+static struct net_mat_action set_ipv6_src_ip = {
+	.name = set_ipv6_src_ip_str,
+	.uid = ACTION_SET_IPV6_SRC_IP,
+	.args = set_ipv6_args,
 };
 
 static struct net_mat_action_arg set_port_args[] = {
@@ -947,6 +971,8 @@ static struct net_mat_action *my_action_list[] = {
 	&set_src_mac,
 	&set_ipv4_dst_ip,
 	&set_ipv4_src_ip,
+	&set_ipv6_dst_ip,
+	&set_ipv6_src_ip,
 	&set_udp_src_port,
 	&set_udp_dst_port,
 	&set_tcp_src_port,
@@ -1262,6 +1288,8 @@ static __u32 actions_tunnel_engine[] = {ACTION_TUNNEL_ENCAP,
 					ACTION_SET_SRC_MAC,
 					ACTION_SET_IPV4_DST_IP,
 					ACTION_SET_IPV4_SRC_IP,
+					ACTION_SET_IPV6_DST_IP,
+					ACTION_SET_IPV6_SRC_IP,
 					ACTION_SET_TCP_DST_PORT,
 					ACTION_SET_TCP_SRC_PORT,
 					ACTION_SET_UDP_DST_PORT,

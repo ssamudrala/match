@@ -1155,6 +1155,18 @@ int get_action_arg(int argc, char **argv, bool need_args,
 			}
 
 			break;
+		case NET_MAT_ACTION_ARG_TYPE_IN6:
+			errno = 0;
+			if (!inet_pton(AF_INET6, *argv, &action->args[i].v.value_in6)) {
+				fprintf(stderr,
+				        "Error: Invalid IPv6 address (%s)\n",
+				        *argv);
+				return -EINVAL;
+			} else {
+				/* one field was parsed */
+				err = 1;
+			}
+			break;
 		case NET_MAT_ACTION_ARG_TYPE_NULL:
 		case NET_MAT_ACTION_ARG_TYPE_VARIADIC:
 			break;

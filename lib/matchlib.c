@@ -628,6 +628,7 @@ const char *match_table_arg_type_str[__NET_MAT_ACTION_ARG_TYPE_VAL_MAX] = {
 	[NET_MAT_ACTION_ARG_TYPE_U32]	= "u32",
 	[NET_MAT_ACTION_ARG_TYPE_U64]	= "u64",
 	[NET_MAT_ACTION_ARG_TYPE_VARIADIC] = "...,",
+	[NET_MAT_ACTION_ARG_TYPE_IN6]	= "in6",
 };
 
 void
@@ -635,6 +636,7 @@ pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
 {
 	struct net_mat_action_arg *arg;
 	int i;
+	char addr[INET6_ADDRSTRLEN];
 
 	pfprintf(fp, print, "\t   %i: %s ( ", act->uid, act->name ? act->name : empty);
 
@@ -662,9 +664,13 @@ pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_U32:
 			pfprintf(fp, print, " 0x%x", arg->v.value_u32);
-		break;
+			break;
 		case NET_MAT_ACTION_ARG_TYPE_U64:
 			pfprintf(fp, print, " %" PRIu64 "", arg->v.value_u64);
+			break;
+		case NET_MAT_ACTION_ARG_TYPE_IN6:
+			pfprintf(fp, print, " %s ",
+				inet_ntop(AF_INET6, &arg->v.value_in6, addr, sizeof(addr)));
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_NULL:
 		case NET_MAT_ACTION_ARG_TYPE_VARIADIC:
@@ -1307,6 +1313,11 @@ match_get_action_arg(struct net_mat_action_arg *arg, struct nlattr *nl)
 		if (nla_len(tb[NET_MAT_ACTION_ARG_VALUE]) < (int)sizeof(__u64))
 			return -EINVAL;
 		arg->v.value_u64 = nla_get_u64(tb[NET_MAT_ACTION_ARG_VALUE]);
+		break;
+	case NET_MAT_ACTION_ARG_TYPE_IN6:
+		if (nla_len(tb[NET_MAT_ACTION_ARG_VALUE]) < (int)sizeof(struct in6_addr))
+			return -EINVAL;
+		arg->v.value_in6 = *((struct in6_addr *)nla_data(tb[NET_MAT_ACTION_ARG_VALUE]));
 		break;
 	case NET_MAT_ACTION_ARG_TYPE_VARIADIC:
 		break;
@@ -2416,6 +2427,11 @@ static int match_put_action_args(struct nl_msg *nlbuf,
 			err = nla_put_u64(nlbuf,
 					  NET_MAT_ACTION_ARG_VALUE,
 					  args[i].v.value_u64);
+			break;
+		case NET_MAT_ACTION_ARG_TYPE_IN6:
+			err = nla_put(nlbuf, NET_MAT_ACTION_ARG_VALUE,
+					sizeof(struct in6_addr),
+					&args[i].v.value_in6.s6_addr32[0]);
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_NULL:
 		case NET_MAT_ACTION_ARG_TYPE_VARIADIC:

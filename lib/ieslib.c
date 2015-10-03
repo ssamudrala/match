@@ -4147,6 +4147,7 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 		case ACTION_SET_IPV4_DST_IP:
 			act |= FM_FLOW_ACTION_SET_DIP;
 			param.dip.addr[0] = actions[i].args[0].v.value_u32;
+			param.dip.isIPv6 = FALSE;
 #ifdef DEBUG
 			MAT_LOG(DEBUG, "%s: action SET_DIP(0x%08x)\n", __func__, param.dip.addr[0]);
 #endif /* DEBUG */
@@ -4154,8 +4155,41 @@ int switch_add_TE_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, stru
 		case ACTION_SET_IPV4_SRC_IP:
 			act |= FM_FLOW_ACTION_SET_SIP;
 			param.sip.addr[0] = actions[i].args[0].v.value_u32;
+			param.sip.isIPv6 = FALSE;
 #ifdef DEBUG
 			MAT_LOG(DEBUG, "%s: action SET_SIP(0x%08x)\n", __func__, param.sip.addr[0]);
+#endif /* DEBUG */
+			break;
+		case ACTION_SET_IPV6_DST_IP:
+			act |= FM_FLOW_ACTION_SET_DIP;
+			param.dip.addr[0] = actions[i].args[0].v.value_in6.s6_addr32[3];
+			param.dip.addr[1] = actions[i].args[0].v.value_in6.s6_addr32[2];
+			param.dip.addr[2] = actions[i].args[0].v.value_in6.s6_addr32[1];
+			param.dip.addr[3] = actions[i].args[0].v.value_in6.s6_addr32[0];
+			param.dip.isIPv6 = TRUE;
+#ifdef DEBUG
+			{
+			char addr[INET6_ADDRSTRLEN];
+			MAT_LOG(DEBUG, "%s: action SET_DIP: %s)\n",
+					__func__,
+					inet_ntop(AF_INET6, &actions[i].args[0].v.value_in6, addr, sizeof(addr)));
+			}
+#endif /* DEBUG */
+			break;
+		case ACTION_SET_IPV6_SRC_IP:
+			act |= FM_FLOW_ACTION_SET_SIP;
+			param.sip.addr[0] = actions[i].args[0].v.value_in6.s6_addr32[3];
+			param.sip.addr[1] = actions[i].args[0].v.value_in6.s6_addr32[2];
+			param.sip.addr[2] = actions[i].args[0].v.value_in6.s6_addr32[1];
+			param.sip.addr[3] = actions[i].args[0].v.value_in6.s6_addr32[0];
+			param.sip.isIPv6 = TRUE;
+#ifdef DEBUG
+			{
+			char addr[INET6_ADDRSTRLEN];
+			MAT_LOG(DEBUG, "%s: action SET_SIP: %s)\n",
+					__func__,
+					inet_ntop(AF_INET6, &actions[i].args[0].v.value_in6, addr, sizeof(addr)));
+			}
 #endif /* DEBUG */
 			break;
 		case ACTION_SET_TCP_DST_PORT:
