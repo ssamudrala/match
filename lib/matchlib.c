@@ -55,6 +55,7 @@
 #include "if_match.h"
 #include "matchlib.h"
 #include "matlog.h"
+#include "matstream.h"
 
 #include <arpa/inet.h>
 
@@ -90,8 +91,8 @@ struct net_mat_hdr_node *graph_nodes[MAX_NODES];
 
 char *graph_names(unsigned int uid);
 char *table_names(unsigned int uid);
-static void ppg_table_graph(FILE *fp, struct net_mat_tbl_node *nodes);
-static void ppg_header_graph(FILE *fp, struct net_mat_hdr_node *nodes);
+static void ppg_table_graph(struct mat_stream *matsp, struct net_mat_tbl_node *nodes);
+static void ppg_header_graph(struct mat_stream *matsp, struct net_mat_hdr_node *nodes);
 
 char *graph_names(unsigned int uid)
 {
@@ -348,14 +349,14 @@ void match_push_graph_nodes(struct net_mat_hdr_node **n)
 		graph_nodes[n[i]->uid] = n[i];
 }
 
-static void pfprintf(FILE *fp, int print, const char *format, ...)
+static void pfprintf(struct mat_stream *matsp, const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
 
-	if (print)
-		vfprintf(fp, format, args);
+	if (matsp)
+		mat_stream_vprintf(matsp, format, args);
 
 	va_end(args);
 }
@@ -502,7 +503,7 @@ match_pp_mac_addr(__u64 *addr, char *buf, size_t len)
 	return buf;
 }
 
-static void pp_field_ref(FILE *fp, int print, struct net_mat_field_ref *ref,
+static void pp_field_ref(struct mat_stream *matsp, struct net_mat_field_ref *ref,
 		bool first, bool nl, Agedge_t *e)
 {
 	char fieldstr[1024];
@@ -513,21 +514,21 @@ static void pp_field_ref(FILE *fp, int print, struct net_mat_field_ref *ref,
 	unsigned int fi = ref->field;
 
 	if (!hi) {
-		pfprintf(fp, print, "\t *");
+		pfprintf(matsp, "\t *");
 		return;
 	}
 
 	if (!ref->type) {
 		if (!ref->header && !ref->field) {
-			pfprintf(fp, print, "\t <any>");
+			pfprintf(matsp, "\t <any>");
 			if (e)
 				agsafeset(e, label, any, empty);
 		} else if (!first) {
-			pfprintf(fp, print, " %s", fi ? fields_names(hi, fi) : empty);
+			pfprintf(matsp, " %s", fi ? fields_names(hi, fi) : empty);
 			if (e)
 				agsafeset(e, label, fi ? fields_names(hi, fi) : empty, empty);
 		} else {
-			pfprintf(fp, print, "\n\t field: %s [%s",
+			pfprintf(matsp, "\n\t field: %s [%s",
 				 graph_names(inst), fi ? fields_names(hi, fi) : empty);
 			if (e)
 				agsafeset(e, label, fi ? fields_names(hi, fi) : empty, empty);
@@ -535,10 +536,10 @@ static void pp_field_ref(FILE *fp, int print, struct net_mat_field_ref *ref,
 
 		switch (ref->mask_type) {
 		case NET_MAT_MASK_TYPE_EXACT:
-			pfprintf(fp, print, " (exact)");
+			pfprintf(matsp, " (exact)");
 			break;
 		case NET_MAT_MASK_TYPE_LPM:
-			pfprintf(fp, print, " (lpm)");
+			pfprintf(matsp, " (lpm)");
 			break;
 		default:
 			break;
@@ -597,28 +598,28 @@ static void pp_field_ref(FILE *fp, int print, struct net_mat_field_ref *ref,
 	}
 
 	if (ref->type)
-		pfprintf(fp, print, "%s", fieldstr);
+		pfprintf(matsp, "%s", fieldstr);
 
 	if (ref->type && nl)
-		pfprintf(fp, print, "\n");
+		pfprintf(matsp, "\n");
 }
 
-static void pp_fields(FILE *fp, int print, struct net_mat_field_ref *ref)
+static void pp_fields(struct mat_stream *matsp, struct net_mat_field_ref *ref)
 {
 	int i;
 	bool first = true;
 
 	for (i = 0; ref[i].header; i++) {
 		if (i > 0  && (ref[i-1].header != ref[i].header)) {
-			pfprintf(fp, print, "]");
+			pfprintf(matsp, "]");
 			first = true;
 		}
 
-		pp_field_ref(fp, print, &ref[i], first, true, NULL);
+		pp_field_ref(matsp, &ref[i], first, true, NULL);
 		first = false;
 	}
 	if (i > 0 && !ref[i-1].type)
-		pfprintf(fp, print, "]\n");
+		pfprintf(matsp, "]\n");
 }
 
 const char *match_table_arg_type_str[__NET_MAT_ACTION_ARG_TYPE_VAL_MAX] = {
@@ -632,13 +633,13 @@ const char *match_table_arg_type_str[__NET_MAT_ACTION_ARG_TYPE_VAL_MAX] = {
 };
 
 void
-pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
+pp_action(struct mat_stream *matsp, struct net_mat_action *act, bool print_values)
 {
 	struct net_mat_action_arg *arg;
 	int i;
 	char addr[INET6_ADDRSTRLEN];
 
-	pfprintf(fp, print, "\t   %i: %s ( ", act->uid, act->name ? act->name : empty);
+	pfprintf(matsp, "\t   %i: %s ( ", act->uid, act->name ? act->name : empty);
 
 	if (!act->args)
 		goto out;
@@ -646,9 +647,9 @@ pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
 	for (i = 0; act->args[i].type; i++) {
 		arg = &act->args[i];
 		if (i > 0)
-			pfprintf(fp, print, ", ");
+			pfprintf(matsp, ", ");
 
-		pfprintf(fp, print, "%s %s",
+		pfprintf(matsp, "%s %s",
 			 match_table_arg_type_str[arg->type],
 			 arg->name ? arg->name : empty);
 
@@ -657,19 +658,19 @@ pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
 
 		switch (arg->type) {
 		case NET_MAT_ACTION_ARG_TYPE_U8:
-			pfprintf(fp, print, " %02x ", arg->v.value_u8);
+			pfprintf(matsp, " %02x ", arg->v.value_u8);
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_U16:
-			pfprintf(fp, print, " %" PRIu16 "", arg->v.value_u16);
+			pfprintf(matsp, " %" PRIu16 "", arg->v.value_u16);
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_U32:
-			pfprintf(fp, print, " 0x%x", arg->v.value_u32);
+			pfprintf(matsp, " 0x%x", arg->v.value_u32);
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_U64:
-			pfprintf(fp, print, " %" PRIu64 "", arg->v.value_u64);
+			pfprintf(matsp, " %" PRIu64 "", arg->v.value_u64);
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_IN6:
-			pfprintf(fp, print, " %s ",
+			pfprintf(matsp, " %s ",
 				inet_ntop(AF_INET6, &arg->v.value_in6, addr, sizeof(addr)));
 			break;
 		case NET_MAT_ACTION_ARG_TYPE_NULL:
@@ -679,66 +680,66 @@ pp_action(FILE *fp, int print, struct net_mat_action *act, bool print_values)
 		}
 	}
 out:
-	pfprintf(fp, print, " )\n");
+	pfprintf(matsp, " )\n");
 }
 
-void pp_actions(FILE *fp, int print, struct net_mat_action *actions)
+void pp_actions(struct mat_stream *matsp, struct net_mat_action *actions)
 {
 	int i;
 
 	for (i = 0; actions[i].uid; i++)
-		pp_action(fp, print, &actions[i], true);
+		pp_action(matsp, &actions[i], true);
 }
 
-static void pp_named_value(FILE *fp, int print, struct net_mat_named_value *v)
+static void pp_named_value(struct mat_stream *matsp, struct net_mat_named_value *v)
 {
 	char valbuf[32] = "";
 
 	if (v->name)
-		pfprintf(fp, print, "\t%s %s = ", v->name,
+		pfprintf(matsp, "\t%s %s = ", v->name,
 			 v->write == NET_MAT_NAMED_VALUE_IS_WRITABLE ?
 			 "(w)": "");
 	else
-		pfprintf(fp, print, "\t%i %s = ", v->uid,
+		pfprintf(matsp, "\t%i %s = ", v->uid,
 			 v->write == NET_MAT_NAMED_VALUE_IS_WRITABLE ?
 			 "(w)": "");
 
 
 	switch (v->type) {
 	case NET_MAT_NAMED_VALUE_TYPE_U8:
-		pfprintf(fp, print, "%02x\n", v->value.u8);
+		pfprintf(matsp, "%02x\n", v->value.u8);
 		break;
 	case NET_MAT_NAMED_VALUE_TYPE_U16:
-		pfprintf(fp, print, "%" PRIu16 "\n", v->value.u16);
+		pfprintf(matsp, "%" PRIu16 "\n", v->value.u16);
 		break;
 	case NET_MAT_NAMED_VALUE_TYPE_U32:
-		pfprintf(fp, print, "%" PRIu32 "\n", v->value.u32);
+		pfprintf(matsp, "%" PRIu32 "\n", v->value.u32);
 		break;
 	case NET_MAT_NAMED_VALUE_TYPE_U64:
 		if (!match_pp_mac_addr(&v->value.u64, valbuf, sizeof(valbuf)))
 			snprintf(valbuf, sizeof(valbuf), "0x%" PRIx64, v->value.u64);
-		pfprintf(fp, print, "%s\n", valbuf);
+		pfprintf(matsp, "%s\n", valbuf);
 		break;
 	case NET_MAT_NAMED_VALUE_TYPE_NULL:
 	default:
-		pfprintf(fp, print, "null\n");
+		pfprintf(matsp, "null\n");
 		break;
 	}
 }
 
-void pp_table(FILE *fp, int print, struct net_mat_tbl *table)
+void pp_table(struct mat_stream *matsp, struct net_mat_tbl *table)
 {
 	int i;
 
-	pfprintf(fp, print, "\n%s:%u src %u apply %u size %u\n",
+	pfprintf(matsp, "\n%s:%u src %u apply %u size %u\n",
 		 table->name, table->uid, table->source, table->apply_action,
 		 table->size);
 
-	pfprintf(fp, print, "  matches:");
+	pfprintf(matsp, "  matches:");
 	if (table->matches)
-		pp_fields(fp, print, table->matches);
+		pp_fields(matsp, table->matches);
 
-	pfprintf(fp, print, "  actions:\n");
+	pfprintf(matsp, "  actions:\n");
 	if (table->actions) {
 		for (i = 0; table->actions[i]; i++) {
 			struct net_mat_action *act = actions[table->actions[i]];
@@ -750,116 +751,122 @@ void pp_table(FILE *fp, int print, struct net_mat_tbl *table)
 			}
 
 			if (act->uid)
-				pp_action(stdout, print, act, false);
+				pp_action(matsp, act, false);
 		}
 	}
 
-	pfprintf(fp, print, "  attributes:\n");
+	pfprintf(matsp, "  attributes:\n");
 	if (table->attribs) {
 		for (i = 0; table->attribs[i].uid; i++)
-			pp_named_value(fp, print, &table->attribs[i]);
+			pp_named_value(matsp, &table->attribs[i]);
 	}
+
+	mat_stream_flush(matsp);
 }
 
-void pp_header(FILE *fp, int print, struct net_mat_hdr *header)
+void pp_header(struct mat_stream *matsp, struct net_mat_hdr *header)
 {
 	struct net_mat_field *f;
 	int i = 0;
 
-	pfprintf(fp, print, "  %s {\n\t", header->name);
+	pfprintf(matsp, "  %s {\n\t", header->name);
 
 	for (f = &header->fields[i];
 	     f->uid;
 	     f = &header->fields[++i]) {
 		if (f->bitwidth)
-			pfprintf(fp, print, " %s:%i ", f->name, f->bitwidth);
+			pfprintf(matsp, " %s:%i ", f->name, f->bitwidth);
 		else
-			pfprintf(fp, print, " %s:* ", f->name);
+			pfprintf(matsp, " %s:* ", f->name);
 
 		if (i && !(i % 5))
-			pfprintf(fp, print, " \n\t");
+			pfprintf(matsp, " \n\t");
 	}
 
 	if (i % 5)
-		pfprintf(fp, print, "\n\t");
-	pfprintf(fp, print, " }\n");
+		pfprintf(matsp, "\n\t");
+	pfprintf(matsp, " }\n");
+
+	mat_stream_flush(matsp);
 }
 
-void pp_rule(FILE *fp, int print, struct net_mat_rule *rule)
+void pp_rule(struct mat_stream *matsp, struct net_mat_rule *rule)
 {
-	pfprintf(fp, print, "table : %u  ", rule->table_id);
-	pfprintf(fp, print, "uid : %u  ", rule->uid);
-	pfprintf(fp, print, "prio : %u  ", rule->priority);
-	pfprintf(fp, print, "bytes : %lu  ", rule->bytes);
-	pfprintf(fp, print, "packets : %lu\n", rule->packets);
+	pfprintf(matsp, "table : %u  ", rule->table_id);
+	pfprintf(matsp, "uid : %u  ", rule->uid);
+	pfprintf(matsp, "prio : %u  ", rule->priority);
+	pfprintf(matsp, "bytes : %lu  ", rule->bytes);
+	pfprintf(matsp, "packets : %lu\n", rule->packets);
 
 	if (rule->matches)
-		pp_fields(fp, print, rule->matches);
+		pp_fields(matsp, rule->matches);
 	if (rule->actions)
-		pp_actions(fp, print, rule->actions);
+		pp_actions(matsp, rule->actions);
+
+	mat_stream_flush(matsp);
 }
 
 
-void pp_rules(FILE *fp, int print, struct net_mat_rule *rules)
+void pp_rules(struct mat_stream *matsp, struct net_mat_rule *rules)
 {
 	int i;
 
-	if (!print)
+	if (!matsp)
 		return;
 
 	for (i = 0; rules[i].uid; i++)
-		pp_rule(fp, print, &rules[i]);
+		pp_rule(matsp, &rules[i]);
 }
 
-static void pp_jump_table(FILE *fp, int print,
+static void pp_jump_table(struct mat_stream *matsp,
 			  struct net_mat_jump_table *jump)
 {
-	if (!print)
+	if (!matsp)
 		return;
-	pp_field_ref(fp, print, &jump->field, 0, false, NULL);
+	pp_field_ref(matsp, &jump->field, 0, false, NULL);
 	if (!jump->node)
-		pfprintf(fp, print, " -> terminal\n");
+		pfprintf(matsp, " -> terminal\n");
 	else
-		pfprintf(fp, print, " -> %s\n", table_names(jump->node));
+		pfprintf(matsp, " -> %s\n", table_names(jump->node));
 
 }
 
-static void pp_port_stats(FILE *fp, int print, struct net_mat_port_stats *s)
+static void pp_port_stats(struct mat_stream *matsp, struct net_mat_port_stats *s)
 {
-	pfprintf(fp, print, "    stats:\n");
-	pfprintf(fp, print, "        rx_packets           %" PRIu64 "\n", s->rx_packets);
-	pfprintf(fp, print, "        rx_bytes             %" PRIu64 "\n", s->rx_bytes);
-	pfprintf(fp, print, "        rx_unicast_packets   %" PRIu64 "\n", s->rx_unicast_packets);
-	pfprintf(fp, print, "        rx_multicast_packets %" PRIu64 "\n", s->rx_multicast_packets);
-	pfprintf(fp, print, "        rx_broadcast_packets %" PRIu64 "\n", s->rx_broadcast_packets);
-	pfprintf(fp, print, "        rx_unicast_bytes     %" PRIu64 "\n", s->rx_unicast_bytes);
-	pfprintf(fp, print, "        rx_multicast_bytes   %" PRIu64 "\n", s->rx_multicast_bytes);
-	pfprintf(fp, print, "        rx_broadcast_bytes   %" PRIu64 "\n", s->rx_broadcast_bytes);
-	pfprintf(fp, print, "        tx_packets           %" PRIu64 "\n", s->tx_packets);
-	pfprintf(fp, print, "        tx_bytes             %" PRIu64 "\n", s->tx_bytes);
-	pfprintf(fp, print, "        tx_unicast_packets   %" PRIu64 "\n", s->tx_unicast_packets);
-	pfprintf(fp, print, "        tx_multicast_packets %" PRIu64 "\n", s->tx_multicast_packets);
-	pfprintf(fp, print, "        tx_broadcast_packets %" PRIu64 "\n", s->tx_broadcast_packets);
-	pfprintf(fp, print, "        tx_unicast_bytes     %" PRIu64 "\n", s->tx_unicast_bytes);
-	pfprintf(fp, print, "        tx_multicast_bytes   %" PRIu64 "\n", s->tx_multicast_bytes);
-	pfprintf(fp, print, "        tx_broadcast_bytes   %" PRIu64 "\n", s->tx_broadcast_bytes);
+	pfprintf(matsp, "    stats:\n");
+	pfprintf(matsp, "        rx_packets           %" PRIu64 "\n", s->rx_packets);
+	pfprintf(matsp, "        rx_bytes             %" PRIu64 "\n", s->rx_bytes);
+	pfprintf(matsp, "        rx_unicast_packets   %" PRIu64 "\n", s->rx_unicast_packets);
+	pfprintf(matsp, "        rx_multicast_packets %" PRIu64 "\n", s->rx_multicast_packets);
+	pfprintf(matsp, "        rx_broadcast_packets %" PRIu64 "\n", s->rx_broadcast_packets);
+	pfprintf(matsp, "        rx_unicast_bytes     %" PRIu64 "\n", s->rx_unicast_bytes);
+	pfprintf(matsp, "        rx_multicast_bytes   %" PRIu64 "\n", s->rx_multicast_bytes);
+	pfprintf(matsp, "        rx_broadcast_bytes   %" PRIu64 "\n", s->rx_broadcast_bytes);
+	pfprintf(matsp, "        tx_packets           %" PRIu64 "\n", s->tx_packets);
+	pfprintf(matsp, "        tx_bytes             %" PRIu64 "\n", s->tx_bytes);
+	pfprintf(matsp, "        tx_unicast_packets   %" PRIu64 "\n", s->tx_unicast_packets);
+	pfprintf(matsp, "        tx_multicast_packets %" PRIu64 "\n", s->tx_multicast_packets);
+	pfprintf(matsp, "        tx_broadcast_packets %" PRIu64 "\n", s->tx_broadcast_packets);
+	pfprintf(matsp, "        tx_unicast_bytes     %" PRIu64 "\n", s->tx_unicast_bytes);
+	pfprintf(matsp, "        tx_multicast_bytes   %" PRIu64 "\n", s->tx_multicast_bytes);
+	pfprintf(matsp, "        tx_broadcast_bytes   %" PRIu64 "\n", s->tx_broadcast_bytes);
 }
 
-static void pp_port_vlan(FILE *fp, int print, struct net_mat_port_vlan *v)
+static void pp_port_vlan(struct mat_stream *matsp, struct net_mat_port_vlan *v)
 {
-	pfprintf(fp, print, "    vlan:\n");
-	pfprintf(fp, print, "        default vlan: %u\n", v->def_vlan);
+	pfprintf(matsp, "    vlan:\n");
+	pfprintf(matsp, "        default vlan: %u\n", v->def_vlan);
 	if (v->def_priority != NET_MAT_PORT_T_DEF_PRI_UNSPEC)
-		pfprintf(fp, print, "        default priority: %u\n", v->def_priority);
+		pfprintf(matsp, "        default priority: %u\n", v->def_priority);
 	if (v->drop_tagged)
-		pfprintf(fp, print, "        drop tagged: %s\n", flag_state_str(v->drop_tagged));
+		pfprintf(matsp, "        drop tagged: %s\n", flag_state_str(v->drop_tagged));
 	if (v->drop_untagged)
-		pfprintf(fp, print, "        drop untagged: %s\n", flag_state_str(v->drop_untagged));
+		pfprintf(matsp, "        drop untagged: %s\n", flag_state_str(v->drop_untagged));
 	if (v->vlan_membership_bitmask) {
 		int i;
 		bool is_trunk = true;
 
-		pfprintf(fp, print, "        vlan membership: ");
+		pfprintf(matsp, "        vlan membership: ");
 		for (i = 0; i < MAX_VLAN; i++) {
 			int slot = (i / 8);
 
@@ -875,75 +882,75 @@ static void pp_port_vlan(FILE *fp, int print, struct net_mat_port_vlan *v)
 			int slot = (i / 8);
 			__u8 index = (__u8) (i % 8);
 			if ((v->vlan_membership_bitmask[slot] >> index) & 0x01) {
-				pfprintf(fp, print, "%i ", i);
+				pfprintf(matsp, "%i ", i);
 			}
 		}
-		pfprintf(fp, print, "%s\n", is_trunk ? "trunk" : "");
+		pfprintf(matsp, "%s\n", is_trunk ? "trunk" : "");
 	}
 
 }
 
-void pp_port(FILE *fp, int print,
+void pp_port(struct mat_stream *matsp,
 	     struct net_mat_port *port)
 {
-	pfprintf(fp, print, " port %u:\n", port->port_id);
-	pfprintf(fp, print, "    state: %s\n", port_state_str(port->state));
-	pfprintf(fp, print, "    speed: %s\n", port_speed_str(port->speed));
+	pfprintf(matsp, " port %u:\n", port->port_id);
+	pfprintf(matsp, "    state: %s\n", port_state_str(port->state));
+	pfprintf(matsp, "    speed: %s\n", port_speed_str(port->speed));
 	if (port->port_phys_id)
-		pfprintf(fp, print, "    phys_id: %u\n", port->port_phys_id);
+		pfprintf(matsp, "    phys_id: %u\n", port->port_phys_id);
 	if (port->max_frame_size)
-		pfprintf(fp, print, "    max_frame_size: %u\n",
+		pfprintf(matsp, "    max_frame_size: %u\n",
 		         port->max_frame_size);
-	pfprintf(fp, print, "    type: %s\n", port_type_str(port->type));
+	pfprintf(matsp, "    type: %s\n", port_type_str(port->type));
 
 	if (port->pci.bus) {
-		pfprintf(fp, print, "    pci: (%x:%x.%x)\n",
+		pfprintf(matsp, "    pci: (%x:%x.%x)\n",
 			 port->pci.bus, port->pci.device, port->pci.function);
 	}
 
 	if (port->loopback)
-		pfprintf(fp, print, "    loopback: %s\n",
+		pfprintf(matsp, "    loopback: %s\n",
 			 flag_state_str(port->loopback));
 
 	if (port->glort) {
-		pfprintf(fp, print, "    glort: 0x%x\n", port->glort);
+		pfprintf(matsp, "    glort: 0x%x\n", port->glort);
 	}
 
 	if (port->learning)
-		pfprintf(fp, print, "    learning: %s\n", flag_state_str(port->learning));
+		pfprintf(matsp, "    learning: %s\n", flag_state_str(port->learning));
 
 	if (port->update_dscp)
-		pfprintf(fp, print, "    update_dscp: %s\n", flag_state_str(port->update_dscp));
+		pfprintf(matsp, "    update_dscp: %s\n", flag_state_str(port->update_dscp));
 
 	if (port->update_ttl)
-		pfprintf(fp, print, "    update_ttl: %s\n", flag_state_str(port->update_ttl));
+		pfprintf(matsp, "    update_ttl: %s\n", flag_state_str(port->update_ttl));
 
 	if (port->mcast_flooding)
-		pfprintf(fp, print, "    mcast_flooding: %s\n", flag_state_str(port->mcast_flooding));
+		pfprintf(matsp, "    mcast_flooding: %s\n", flag_state_str(port->mcast_flooding));
 
 	if (port->update_dmac)
-		pfprintf(fp, print, "    update_dmac: %s\n", flag_state_str(port->update_dmac));
+		pfprintf(matsp, "    update_dmac: %s\n", flag_state_str(port->update_dmac));
 
 	if (port->update_smac)
-		pfprintf(fp, print, "    update_smac: %s\n", flag_state_str(port->update_smac));
+		pfprintf(matsp, "    update_smac: %s\n", flag_state_str(port->update_smac));
 
 	if (port->update_vlan)
-		pfprintf(fp, print, "    update_vlan: %s\n", flag_state_str(port->update_vlan));
+		pfprintf(matsp, "    update_vlan: %s\n", flag_state_str(port->update_vlan));
 
-	pp_port_vlan(fp, print, &port->vlan);
+	pp_port_vlan(matsp, &port->vlan);
 
-	pp_port_stats(fp, print, &port->stats);
+	pp_port_stats(matsp, &port->stats);
 }
 
-void pp_ports(FILE *fp, int print, struct net_mat_port *ports)
+void pp_ports(struct mat_stream *matsp, struct net_mat_port *ports)
 {
         int i;
 
-        if (!print)
+        if (!matsp)
                 return;
 
         for (i = 0; ports[i].port_id != NET_MAT_PORT_ID_UNSPEC; i++)
-                pp_port(fp, print, &ports[i]);
+                pp_port(matsp, &ports[i]);
 }
 
 static int match_compar_graph_nodes(const void *a, const void *b)
@@ -971,29 +978,29 @@ static int match_compar_graph_nodes(const void *a, const void *b)
 	return -EINVAL;
 }
 
-static void pp_tbl_node_flags(FILE *fp, int print, __u32 flags)
+static void pp_tbl_node_flags(struct mat_stream *matsp, __u32 flags)
 {
-	if (!print)
+	if (!matsp)
 		return;
 
 	if (flags)
-		pfprintf(fp, print, "( ");
+		pfprintf(matsp, "( ");
 	if (flags & NET_MAT_TABLE_EGRESS_ROOT)
-		pfprintf(fp, print, "EGRESS ");
+		pfprintf(matsp, "EGRESS ");
 	if (flags & NET_MAT_TABLE_INGRESS_ROOT)
-		pfprintf(fp, print, "INGRESS ");
+		pfprintf(matsp, "INGRESS ");
 	if (flags & NET_MAT_TABLE_DYNAMIC)
-		pfprintf(fp, print, "DYNAMIC ");
+		pfprintf(matsp, "DYNAMIC ");
 	if (flags)
-		pfprintf(fp, print, ") ");
+		pfprintf(matsp, ") ");
 }
 
-void pp_table_graph(FILE *fp, int print, struct net_mat_tbl_node *nodes)
+void pp_table_graph(struct mat_stream *matsp, struct net_mat_tbl_node *nodes)
 {
 	unsigned int src = 0;
 	unsigned int i, j;
 
-	if (!print)
+	if (!matsp)
 		return;
 
 	for (i = 0; nodes[i].uid; i++)
@@ -1009,23 +1016,25 @@ void pp_table_graph(FILE *fp, int print, struct net_mat_tbl_node *nodes)
 		}
 		if (src != t->source) {
 			src = t->source;
-			pfprintf(fp, print, "source: %u: ", src);
+			pfprintf(matsp, "source: %u: ", src);
 		}
 
-		pfprintf(fp, print, " %s ", table_names(nodes[i].uid));
-		pp_tbl_node_flags(fp, print, nodes[i].flags);
-		pfprintf(fp, print, "\n");
+		pfprintf(matsp, " %s ", table_names(nodes[i].uid));
+		pp_tbl_node_flags(matsp, nodes[i].flags);
+		pfprintf(matsp, "\n");
 
 		if (nodes[i].jump) {
 			for (j = 0; nodes[i].jump[j].node || nodes[i].jump[j].field.instance; ++j)
-				pp_jump_table(fp, print, &nodes[i].jump[j]);
+				pp_jump_table(matsp, &nodes[i].jump[j]);
 		} else {
-			pfprintf(fp, print, "\t * -> terminal\n");
+			pfprintf(matsp, "\t * -> terminal\n");
 		}
 	}
+
+	mat_stream_flush(matsp);
 }
 
-static void ppg_jump_table(FILE *fp, struct net_mat_jump_table *jump,
+static void ppg_jump_table(struct mat_stream *matsp __unused, struct net_mat_jump_table *jump,
 			   Agraph_t *g, Agnode_t *n)
 {
 	Agedge_t *e;
@@ -1034,16 +1043,20 @@ static void ppg_jump_table(FILE *fp, struct net_mat_jump_table *jump,
 		e = agedge(g, n, graphviz_table_nodes[jump->node], 0, 1);
 
 		if (jump->field.instance)
-			pp_field_ref(fp, false, &jump->field, 0, false, e);
+			pp_field_ref(NULL, &jump->field, 0, false, e);
 	}
 }
 
-void ppg_table_graph(FILE *fp, struct net_mat_tbl_node *nodes)
+void ppg_table_graph(struct mat_stream *matsp, struct net_mat_tbl_node *nodes)
 {
 	Agraph_t *s = NULL, *g = agopen(agopen_g, Agdirected, 0);
 	char srcstr[80];
 	__u32 src = 0;
 	unsigned int i, j;
+	FILE *fp = NULL;
+
+	if (matsp)
+		fp = mat_stream_get_fp(matsp);
 
 	agsafeset(g, rankdir, LR, empty);
 	for (i = 0; nodes[i].uid; i++) {
@@ -1071,24 +1084,28 @@ void ppg_table_graph(FILE *fp, struct net_mat_tbl_node *nodes)
 	qsort(nodes, i, sizeof(*nodes), match_compar_graph_nodes);
 	for (i = 0; nodes[i].uid; i++) {
 		for (j = 0; nodes[i].jump && nodes[i].jump[j].node; ++j)
-			ppg_jump_table(fp, &nodes[i].jump[j], s,
+			ppg_jump_table(matsp, &nodes[i].jump[j], s,
 				       graphviz_table_nodes[nodes[i].uid]);
 	}
 	agwrite(g, fp);
 }
 
-void ppg_header_graph(FILE *fp, struct net_mat_hdr_node *nodes)
+void ppg_header_graph(struct mat_stream *matsp, struct net_mat_hdr_node *nodes)
 {
 	Agraph_t *g = agopen(agopen_g, Agdirected, 0);
 	Agedge_t *e;
 	int i, j;
+	FILE *fp = NULL;
+
+	if (matsp)
+		fp = mat_stream_get_fp(matsp);
 
 	for (i = 0; nodes[i].uid; i++)
 		graphviz_header_nodes[nodes[i].uid] = agnode(g, nodes[i].name, 1);
 
 #if 0
 		for (j = 0; nodes[i].hdrs[j]; j++)
-			pfprintf(fp, print, " %s ",
+			pfprintf(matsp, " %s ",
 				 headers_names(nodes[i].hdrs[j]));
 #endif
 
@@ -1098,7 +1115,7 @@ void ppg_header_graph(FILE *fp, struct net_mat_hdr_node *nodes)
 				e = agedge(g, graphviz_header_nodes[nodes[i].uid],
 					   graphviz_header_nodes[nodes[i].jump[j].node],
 					   0, 1);
-				pp_field_ref(fp, false, &nodes[i].jump[j].field,
+				pp_field_ref(NULL, &nodes[i].jump[j].field,
 					     0, false, e);
 			}
 		}
@@ -1106,35 +1123,37 @@ void ppg_header_graph(FILE *fp, struct net_mat_hdr_node *nodes)
 	agwrite(g, fp);
 }
 
-void pp_header_graph(FILE *fp, int print, struct net_mat_hdr_node *nodes)
+void pp_header_graph(struct mat_stream *matsp, struct net_mat_hdr_node *nodes)
 {
 	int i, j;
 
-	if (!print)
+	if (!matsp)
 		return;
 
 	for (i = 0; nodes[i].uid; i++) {
-		pfprintf(fp, print, "%s: ", nodes[i].name);
+		pfprintf(matsp, "%s: ", nodes[i].name);
 
 		for (j = 0; nodes[i].hdrs && nodes[i].hdrs[j]; j++)
-			pfprintf(fp, print, " %s ",
+			pfprintf(matsp, " %s ",
 				 headers_names(nodes[i].hdrs[j]));
 
-		pfprintf(fp, print, "\n");
+		pfprintf(matsp, "\n");
 		for (j = 0; nodes[i].jump && nodes[i].jump[j].node; ++j) {
-			pp_field_ref(fp, print, &nodes[i].jump[j].field, 0,
+			pp_field_ref(matsp, &nodes[i].jump[j].field, 0,
 				     false, NULL);
 			if (!nodes[i].jump[j].node)
-				pfprintf(fp, print, " -> terminal\n");
+				pfprintf(matsp, " -> terminal\n");
 			else
-				pfprintf(fp, print, " -> %s\n",
+				pfprintf(matsp, " -> %s\n",
 					 graph_names(nodes[i].jump[j].node));
 		}
-		pfprintf(fp, print, "\n");
+		pfprintf(matsp, "\n");
 	}
+
+	mat_stream_flush(matsp);
 }
 
-int match_get_field(FILE *fp, int print, struct nlattr *nla,
+int match_get_field(struct mat_stream *matsp, struct nlattr *nla,
 		struct net_mat_field_ref *field)
 {
 	struct nlattr *ref[NET_MAT_FIELD_REF_MAX+1];
@@ -1248,7 +1267,7 @@ int match_get_field(FILE *fp, int print, struct nlattr *nla,
 	}
 
 out:
-	pp_field_ref(fp, print, field, -1, true, NULL);
+	pp_field_ref(matsp, field, -1, true, NULL);
 
 	return err;
 }
@@ -1328,7 +1347,7 @@ match_get_action_arg(struct net_mat_action_arg *arg, struct nlattr *nl)
 	return 0;
 }
 
-int match_get_action(FILE *fp, int print, struct nlattr *nl,
+int match_get_action(struct mat_stream *matsp, struct nlattr *nl,
 		     struct net_mat_action *a)
 {
 	int rem;
@@ -1399,7 +1418,7 @@ int match_get_action(FILE *fp, int print, struct nlattr *nl,
 	}
 
 done:
-	pp_action(fp, print, act, false);
+	pp_action(matsp, act, false);
 	if (!a) {
 		free(act->args);
 		free(act->name);
@@ -1416,7 +1435,7 @@ out:
 	return err;
 }
 
-int match_get_matches(FILE *fp, int print, struct nlattr *nl,
+int match_get_matches(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_field_ref **ref)
 {
 	struct net_mat_field_ref *r;
@@ -1434,14 +1453,14 @@ int match_get_matches(FILE *fp, int print, struct nlattr *nl,
 
 	rem = nla_len(nl);
 	for (i = nla_data(nl), cnt = 0; nla_ok(i, rem); i = nla_next(i, &rem), cnt++)
-		match_get_field(fp, print, i, &r[cnt]);
+		match_get_field(matsp, i, &r[cnt]);
 
 	if (ref)
 		*ref = r;
 	return 0;
 }
 
-int match_get_actions(FILE *fp, int print, struct nlattr *nl,
+int match_get_actions(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_action **actions)
 {
 	struct net_mat_action *acts;
@@ -1459,7 +1478,7 @@ int match_get_actions(FILE *fp, int print, struct nlattr *nl,
 
 	rem = nla_len(nl);
 	for (j = 0, i = nla_data(nl); nla_ok(i, rem); i = nla_next(i, &rem), j++)
-		match_get_action(fp, print, i, &acts[j]);
+		match_get_action(matsp, i, &acts[j]);
 
 	if (actions)
 		*actions = acts;
@@ -1549,7 +1568,7 @@ out:
 	return -EINVAL;
 }
 
-int match_get_table(FILE *fp, int print, struct nlattr *nl,
+int match_get_table(struct mat_stream *matsp, struct nlattr *nl,
 		   struct net_mat_tbl *t)
 {
 	struct nlattr *table[NET_MAT_TABLE_ATTR_MAX+1];
@@ -1582,7 +1601,7 @@ int match_get_table(FILE *fp, int print, struct nlattr *nl,
 	size = table[NET_MAT_TABLE_ATTR_SIZE] ? nla_get_u32(table[NET_MAT_TABLE_ATTR_SIZE]) : 0;
 
 	if (table[NET_MAT_TABLE_ATTR_MATCHES])
-		match_get_matches(fp, false, table[NET_MAT_TABLE_ATTR_MATCHES], &matches);
+		match_get_matches(NULL, table[NET_MAT_TABLE_ATTR_MATCHES], &matches);
 
 	if (table[NET_MAT_TABLE_ATTR_ACTIONS]) {
 		rem = nla_len(table[NET_MAT_TABLE_ATTR_ACTIONS]);
@@ -1632,7 +1651,7 @@ int match_get_table(FILE *fp, int print, struct nlattr *nl,
 	t->actions = actions;
 	t->attribs = values;
 
-	pp_table(fp, print, t);
+	pp_table(matsp, t);
 	return 0;
 out:
 	if (matches)
@@ -1648,7 +1667,7 @@ out:
 	return -ENOMEM;
 }
 
-int match_get_tables(FILE *fp, int print, struct nlattr *nl,
+int match_get_tables(struct mat_stream *matsp, struct nlattr *nl,
 		      struct net_mat_tbl **t)
 {
 	struct net_mat_tbl *tables = NULL;
@@ -1666,13 +1685,13 @@ int match_get_tables(FILE *fp, int print, struct nlattr *nl,
 
 	rem = nla_len(nl);
 	for (cnt = 0, i = nla_data(nl); nla_ok(i, rem); i = nla_next(i, &rem), cnt++) {
-		err = match_get_table(fp, print, i, &tables[cnt]);
+		err = match_get_table(matsp, i, &tables[cnt]);
 		if (err)
 			goto out;
 	}
 
-	if (print) /* TBD: move this into printer */
-		pfprintf(fp, print, "\n");
+	if (matsp)
+		pfprintf(matsp, "\n");
 
 	if (t)
 		*t = tables;
@@ -1683,7 +1702,7 @@ out:
 	return err;
 }
 
-int match_get_rules(FILE *fp, int print, struct nlattr *attr,
+int match_get_rules(struct mat_stream *matsp, struct nlattr *attr,
 		struct net_mat_rule **rules)
 {
 	struct net_mat_field_ref *matches = NULL;
@@ -1732,7 +1751,7 @@ int match_get_rules(FILE *fp, int print, struct nlattr *attr,
 			f[count].packets = nla_get_u64(rule[NET_MAT_ATTR_PACKETS]);
 
 		if (rule[NET_MAT_ATTR_MATCHES]) {
-			err = match_get_matches(fp, false,
+			err = match_get_matches(NULL,
 					       rule[NET_MAT_ATTR_MATCHES],
 					       &matches);
 			if (err) {
@@ -1742,7 +1761,7 @@ int match_get_rules(FILE *fp, int print, struct nlattr *attr,
 		}
 
 		if (rule[NET_MAT_ATTR_ACTIONS]) {
-			err = match_get_actions(fp, false,
+			err = match_get_actions(NULL,
 					       rule[NET_MAT_ATTR_ACTIONS],
 					       &actions);
 			if (err) {
@@ -1755,7 +1774,7 @@ int match_get_rules(FILE *fp, int print, struct nlattr *attr,
 		f[count].actions = actions;
 	}
 
-	pp_rules(fp, print, f);
+	pp_rules(matsp, f);
 	if (rules)
 		*rules = f;
 	else {
@@ -1774,7 +1793,7 @@ unsigned int match_get_rule_errors(struct nlattr *nla)
 }
 
 int
-match_get_table_field(FILE *fp __unused, int print __unused, struct nlattr *nl,
+match_get_table_field(struct mat_stream *matsp __unused, struct nlattr *nl,
 		struct net_mat_hdr *hdr)
 {
 	struct nlattr *field[NET_MAT_FIELD_ATTR_MAX+1];
@@ -1830,7 +1849,7 @@ out:
 	return err;
 }
 
-int match_get_headers(FILE *fp, int print, struct nlattr *nl,
+int match_get_headers(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_hdr **hdrs)
 {
 	unsigned int count = 0;
@@ -1877,11 +1896,11 @@ int match_get_headers(FILE *fp, int print, struct nlattr *nl,
 		header->name =
 			strdup(hdr[NET_MAT_HEADER_ATTR_NAME] ?
 				nla_get_string(hdr[NET_MAT_HEADER_ATTR_NAME]) : empty);
-		match_get_table_field(fp, print,
+		match_get_table_field(matsp,
 				     hdr[NET_MAT_HEADER_ATTR_FIELDS],
 				     header);
 		headers[header->uid] = header;
-		pp_header(fp, print, header);
+		pp_header(matsp, header);
 		h[count] = *header;
 		count++;
 	}
@@ -1900,7 +1919,7 @@ out:
 
 
 
-static int match_get_jump(FILE *fp, int print, struct nlattr *nl,
+static int match_get_jump(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_jump_table *j)
 {
 	struct nlattr *ref[NET_MAT_FIELD_REF_MAX+1];
@@ -1915,13 +1934,13 @@ static int match_get_jump(FILE *fp, int print, struct nlattr *nl,
 		return -EINVAL;
 
 	j->node = nla_get_u32(ref[NET_MAT_FIELD_REF_NEXT_NODE]);
-	match_get_field(fp, print, nl, &j->field);
+	match_get_field(matsp, nl, &j->field);
 
-	pp_jump_table(fp, print, j);
+	pp_jump_table(matsp, j);
 	return 0;
 }
 
-static int match_get_jump_table(FILE *fp, int print, struct nlattr *nl,
+static int match_get_jump_table(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_jump_table **ref)
 {
 	struct net_mat_jump_table *jump = NULL;
@@ -1937,7 +1956,7 @@ static int match_get_jump_table(FILE *fp, int print, struct nlattr *nl,
 		return -ENOMEM;
 	rem = nla_len(nl);
 	for (j = 0, i = nla_data(nl); nla_ok(i, rem); j++, i = nla_next(i, &rem))
-		match_get_jump(fp, print, i, &jump[j]);
+		match_get_jump(matsp, i, &jump[j]);
 
 	if (ref)
 		*ref = jump;
@@ -1972,7 +1991,7 @@ static int match_get_header_refs(struct nlattr *nl, __u32 **ref)
 	return 0;
 }
 
-int match_get_hdrs_graph(FILE *fp, int print, struct nlattr *nl,
+int match_get_hdrs_graph(struct mat_stream *matsp, int print, struct nlattr *nl,
 		struct net_mat_hdr_node **ref)
 {
 	struct net_mat_hdr_node *nodes = NULL;
@@ -2037,7 +2056,7 @@ int match_get_hdrs_graph(FILE *fp, int print, struct nlattr *nl,
 		if (!node[NET_MAT_HEADER_NODE_JUMP])
 			continue;
 
-		err = match_get_jump_table(fp, false,
+		err = match_get_jump_table(NULL,
 					  node[NET_MAT_HEADER_NODE_JUMP],
 					  &nodes[j].jump);
 		if (err) {
@@ -2049,9 +2068,9 @@ int match_get_hdrs_graph(FILE *fp, int print, struct nlattr *nl,
 	}
 
 	if (print == PRINT_GRAPHVIZ)
-		ppg_header_graph(stdout, nodes);
+		ppg_header_graph(matsp, nodes);
 	else if (print)
-		pp_header_graph(stdout, print, nodes);
+		pp_header_graph(matsp, nodes);
 	if (ref)
 		*ref = nodes;
 
@@ -2063,7 +2082,7 @@ out:
 	return err;
 }
 
-int match_get_tbl_graph(FILE *fp, int print, struct nlattr *nl,
+int match_get_tbl_graph(struct mat_stream *matsp, int print, struct nlattr *nl,
 		struct net_mat_tbl_node **ref)
 {
 	struct net_mat_tbl_node *nodes = NULL;
@@ -2109,7 +2128,7 @@ int match_get_tbl_graph(FILE *fp, int print, struct nlattr *nl,
 		if (!node[NET_MAT_TABLE_GRAPH_NODE_JUMP])
 			continue; /* valid for terminating nodes */
 
-		err = match_get_jump_table(fp, false,
+		err = match_get_jump_table(NULL,
 					  node[NET_MAT_TABLE_GRAPH_NODE_JUMP],
 					  &n->jump);
 		if (err) {
@@ -2119,9 +2138,9 @@ int match_get_tbl_graph(FILE *fp, int print, struct nlattr *nl,
 		}
 	}
 	if (print == PRINT_GRAPHVIZ)
-		ppg_table_graph(fp, nodes);
+		ppg_table_graph(matsp, nodes);
 	else if (print)
-		pp_table_graph(fp, print, nodes);
+		pp_table_graph(matsp, nodes);
 	if (ref)
 		*ref = nodes;
 	return err;
@@ -2133,7 +2152,7 @@ out:
 	return err;
 }
 
-static int match_get_port_stats(FILE *fp __unused, int print __unused,
+static int match_get_port_stats(struct mat_stream *matsp __unused,
 			       struct nlattr *nlattr,
 			       struct net_mat_port_stats *stats)
 {
@@ -2207,7 +2226,7 @@ static int match_get_port_stats(FILE *fp __unused, int print __unused,
 	return 0;
 }
 
-static int match_get_port_vlan(FILE *fp __unused, int print __unused,
+static int match_get_port_vlan(struct mat_stream *matsp __unused,
 			       struct nlattr *nlattr,
 			       struct net_mat_port_vlan *vlan)
 {
@@ -2253,7 +2272,7 @@ static int match_get_port_vlan(FILE *fp __unused, int print __unused,
 	return 0;
 }
 
-int match_get_port(FILE *fp, int print, struct nlattr *nlattr,
+int match_get_port(struct mat_stream *matsp, struct nlattr *nlattr,
 		 struct net_mat_port *port)
 {
 	struct nlattr *p[NET_MAT_PORT_T_MAX + 1];
@@ -2301,13 +2320,13 @@ int match_get_port(FILE *fp, int print, struct nlattr *nlattr,
 	}
 
 	if (p[NET_MAT_PORT_T_STATS]) {
-		err = match_get_port_stats(fp, print, p[NET_MAT_PORT_T_STATS], &port->stats);
+		err = match_get_port_stats(matsp, p[NET_MAT_PORT_T_STATS], &port->stats);
 		if (err)
 			return -EINVAL;
 	}
 
 	if (p[NET_MAT_PORT_T_VLAN]) {
-		err = match_get_port_vlan(fp, print, p[NET_MAT_PORT_T_VLAN], &port->vlan);
+		err = match_get_port_vlan(matsp, p[NET_MAT_PORT_T_VLAN], &port->vlan);
 		if (err)
 			return -EINVAL;
 	}
@@ -2336,11 +2355,11 @@ int match_get_port(FILE *fp, int print, struct nlattr *nlattr,
 	if (p[NET_MAT_PORT_T_UPDATE_VLAN])
 		port->update_vlan = nla_get_u32(p[NET_MAT_PORT_T_UPDATE_VLAN]);
 
-	pp_port(fp, print, port);
+	pp_port(matsp, port);
 	return 0;
 }
 
-int match_get_ports(FILE *fp, int print, struct nlattr *nl,
+int match_get_ports(struct mat_stream *matsp, struct nlattr *nl,
 		   struct net_mat_port **p)
 {
 	struct net_mat_port *ports = NULL;
@@ -2359,7 +2378,7 @@ int match_get_ports(FILE *fp, int print, struct nlattr *nl,
 	rem = nla_len(nl);
 	for (cnt = 0, i = nla_data(nl); nla_ok(i, rem); i = nla_next(i, &rem), cnt++) {
 		ports[cnt].vlan.def_priority = NET_MAT_PORT_T_DEF_PRI_UNSPEC;
-		err = match_get_port(fp, print, i, &ports[cnt]);
+		err = match_get_port(matsp, i, &ports[cnt]);
 		if (err)
 			goto out;
 	}

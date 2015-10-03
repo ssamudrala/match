@@ -219,7 +219,7 @@ int main(void)
 		free(te_vxlan_decap.name);
 		return -EINVAL;
 	}
-	pp_table(stdout, true, &te_vxlan_decap);
+	pp_table(mat_stream_stdout(), &te_vxlan_decap);
 	free(te_vxlan_decap.name);
 	printf("\n");
 
@@ -239,7 +239,7 @@ int main(void)
 		free(te_vxlan_encap.name);
 		return -EINVAL;
 	}
-	pp_table(stdout, true, &te_vxlan_encap);
+	pp_table(mat_stream_stdout(), &te_vxlan_encap);
 	free(te_vxlan_encap.name);
 	printf("\n");
 
@@ -258,7 +258,7 @@ int main(void)
 		free(tcam_to_te.name);
 		return -EINVAL;
 	}
-	pp_table(stdout, true, &tcam_to_te);
+	pp_table(mat_stream_stdout(), &tcam_to_te);
 	free(tcam_to_te.name);
 	printf("\n");
 	free(tables);

@@ -57,8 +57,11 @@
 #include "matchlib.h"
 #include "matchlib_nl.h"
 #include "matlog.h"
+#include "matstream.h"
 
 static int verbose = 0;
+static struct mat_stream *matsp = NULL;
+
 static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_IDENTIFIER_TYPE] = { .type = NLA_U32 },
 	[NET_MAT_IDENTIFIER]	= { .type = NLA_U32 },
@@ -73,6 +76,11 @@ static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 void match_nl_set_verbose(int new_verbose)
 {
 	verbose = new_verbose;
+}
+
+void match_nl_set_streamer(struct mat_stream *streamer)
+{
+	matsp = streamer;
 }
 
 void match_nl_free_msg(struct match_msg *msg)
@@ -138,12 +146,12 @@ struct net_mat_hdr *match_nl_get_headers(struct nl_sock *nsd, uint32_t pid,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
 					      NET_MAT_HEADERS, tb))
 			goto out;
 
 		if (tb[NET_MAT_HEADERS])
-			match_get_headers(stdout, verbose,
+			match_get_headers(matsp,
 					 tb[NET_MAT_HEADERS], &hdrs);
 	}
 	match_nl_free_msg(msg);
@@ -174,12 +182,12 @@ struct net_mat_action *match_nl_get_actions(struct nl_sock *nsd, uint32_t pid,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
 					      NET_MAT_ACTIONS, tb))
 			goto out;
 
 		if (tb[NET_MAT_ACTIONS])
-			match_get_actions(stdout, verbose,
+			match_get_actions(matsp,
 					 tb[NET_MAT_ACTIONS], &actions);
 	}
 	match_nl_free_msg(msg);
@@ -210,12 +218,12 @@ struct net_mat_tbl *match_nl_get_tables(struct nl_sock *nsd, uint32_t pid,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
 					      NET_MAT_TABLES, tb))
 			goto out;
 
 		if (tb[NET_MAT_TABLES])
-			match_get_tables(stdout, verbose,
+			match_get_tables(matsp,
 					tb[NET_MAT_TABLES], &tables);
 	}
 	match_nl_free_msg(msg);
@@ -248,12 +256,12 @@ struct net_mat_hdr_node *match_nl_get_hdr_graph(struct nl_sock *nsd,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
 					      NET_MAT_HEADER_GRAPH, tb))
 			goto out;
 
 		if (tb[NET_MAT_HEADER_GRAPH])
-			match_get_hdrs_graph(stdout, verbose,
+			match_get_hdrs_graph(matsp, verbose,
 					    tb[NET_MAT_HEADER_GRAPH],
 					    &hdr_nodes);
 	}
@@ -287,12 +295,12 @@ struct net_mat_tbl_node *match_nl_get_tbl_graph(struct nl_sock *nsd,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
 					      NET_MAT_TABLE_GRAPH, tb))
 			goto out;
 
 		if (tb[NET_MAT_TABLE_GRAPH])
-			match_get_tbl_graph(stdout, verbose,
+			match_get_tbl_graph(matsp, verbose,
 					   tb[NET_MAT_TABLE_GRAPH], &nodes);
 	}
 	match_nl_free_msg(msg);
@@ -313,7 +321,7 @@ int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
 	sigset_t bs;
 	int err = 0;
 
-	pp_rule(stdout, verbose, rule);
+	pp_rule(matsp, rule);
 
 	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
 	if (!msg) {
@@ -366,7 +374,7 @@ int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
 		return err;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, true, 0, tb);
+	err = match_nl_table_cmd_to_type(matsp, 0, tb);
 	if (err) {
 		match_nl_free_msg(msg);
 		return err;
@@ -374,7 +382,7 @@ int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
 
 	if (tb[NET_MAT_RULES]) {
 		MAT_LOG(ERR, "Failed to set:\n");
-		match_get_rules(stdout, verbose, tb[NET_MAT_RULES], NULL);
+		match_get_rules(matsp, tb[NET_MAT_RULES], NULL);
 		match_nl_free_msg(msg);
 		return -EINVAL;
 	}
@@ -458,12 +466,12 @@ struct net_mat_rule *match_nl_get_rules(struct nl_sock *nsd, uint32_t pid,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
                                               NET_MAT_RULES, tb))
                         goto out;
 
 		if (tb[NET_MAT_RULES]) {
-			err = match_get_rules(stdout, verbose, tb[NET_MAT_RULES], &rule);
+			err = match_get_rules(matsp, tb[NET_MAT_RULES], &rule);
 			if (err)
 				goto out;
 		}
@@ -532,7 +540,7 @@ int match_nl_set_port(struct nl_sock *nsd, uint32_t pid,
 		return err;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, true, 0, tb);
+	err = match_nl_table_cmd_to_type(matsp, 0, tb);
 	if (err) {
 		match_nl_free_msg(msg);
 		return err;
@@ -540,7 +548,7 @@ int match_nl_set_port(struct nl_sock *nsd, uint32_t pid,
 
 	if (tb[NET_MAT_PORTS]) {
 		MAT_LOG(ERR, "Failed to set:\n");
-		match_get_ports(stdout, verbose, tb[NET_MAT_PORTS], NULL);
+		match_get_ports(matsp, tb[NET_MAT_PORTS], NULL);
 		match_nl_free_msg(msg);
 		return -EINVAL;
 	}
@@ -613,12 +621,12 @@ struct net_mat_port *match_nl_get_ports(struct nl_sock *nsd, uint32_t pid,
 			goto out;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true,
+		if (match_nl_table_cmd_to_type(matsp,
                                               NET_MAT_PORTS, tb))
                         goto out;
 
 		if (tb[NET_MAT_PORTS]) {
-			err = match_get_ports(stdout, verbose, tb[NET_MAT_PORTS], &port);
+			err = match_get_ports(matsp, tb[NET_MAT_PORTS], &port);
 			if (err)
 				goto out;
 		}
@@ -839,8 +847,7 @@ struct match_msg *match_nl_recv_msg(struct nl_sock *nsd, int *err)
 	return msg;
 }
 
-int match_nl_table_cmd_to_type(FILE *fp __attribute__((unused)),
-                               bool print __attribute__((unused)),
+int match_nl_table_cmd_to_type(struct mat_stream *matsp __unused,
                                int valid, struct nlattr *tb[])
 {
 	unsigned int type;
@@ -991,13 +998,13 @@ static int match_nl_get_port(struct nl_sock *nsd, uint32_t pid,
 			return -EINVAL;
 		}
 
-		if (match_nl_table_cmd_to_type(stdout, true, NET_MAT_PORTS, tb)) {
+		if (match_nl_table_cmd_to_type(matsp, NET_MAT_PORTS, tb)) {
 			match_nl_free_msg(msg);
 			return -EINVAL;
 		}
 
 		if (tb[NET_MAT_PORTS]) {
-			err = match_get_ports(stdout, verbose,
+			err = match_get_ports(matsp,
 					     tb[NET_MAT_PORTS], &port_query);
 			if (err) {
 				match_nl_free_msg(msg);

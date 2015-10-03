@@ -24,6 +24,7 @@ WARNING_FLAGS_GCC = -pedantic -Wall -Wextra -Wwrite-strings -Wformat=2 \
 AM_CFLAGS = -std=c99 -O2 -D_GNU_SOURCE -Werror $(WARNING_FLAGS_GCC) \
             $(LIBNL_CFLAGS) $(LIBGVC_CFLAGS) -I$(abs_top_srcdir) \
             -I$(abs_top_srcdir)/include
+AM_CFLAGS += -DMAT_LOG_WITH_LOCATION
 CFLAGS += $(EXTRA_CFLAGS)
 
 LIBTOOL_DEPS = @LIBTOOL_DEPS@
@@ -34,7 +35,7 @@ libmatchies_la_CFLAGS = $(AM_CFLAGS) $(IES_CFLAGS) $(CFLAGS)
 libmatchies_la_LDFLAGS = -release @MATCH_INTERFACE_VERSION@
 
 lib_LTLIBRARIES += libmatch.la
-libmatch_la_SOURCES = matchlib_nl.c matchlib.c matlog.c
+libmatch_la_SOURCES = matchlib_nl.c matchlib.c matlog.c matstream.c
 libmatch_la_LDFLAGS = -release @MATCH_INTERFACE_VERSION@
 
 lib_LTLIBRARIES += libmatchd.la

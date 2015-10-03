@@ -31,6 +31,7 @@
 #define _MATCHLIB_H
 
 #include <linux/netlink.h>
+#include "matstream.h"
 
 #define PRINT_GRAPHVIZ 2
 #define MAX_VLAN 4096
@@ -39,41 +40,41 @@
 
 struct nl_msg;
 
-int match_get_field(FILE *fp, int print, struct nlattr *nl,
+int match_get_field(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_field_ref *ref);
 
-int match_get_matches(FILE *fp, int print, struct nlattr *nl,
+int match_get_matches(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_field_ref **ref);
 
-int match_get_action(FILE *fp, int p, struct nlattr *nl,
+int match_get_action(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_action *a);
 
-int match_get_actions(FILE  *fp, int print, struct nlattr *nl,
+int match_get_actions(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_action **actions);
 
-int match_get_headers(FILE *fp, int print, struct nlattr *nl,
+int match_get_headers(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_hdr **headers);
 
-int match_get_rules(FILE *fp, int print, struct nlattr *attr,
+int match_get_rules(struct mat_stream *matsp, struct nlattr *attr,
 		struct net_mat_rule **f);
 
-int match_get_table(FILE *fp, int print, struct nlattr *nl,
+int match_get_table(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_tbl *t);
 
-int match_get_tables(FILE *fp, int print, struct nlattr *nl,
+int match_get_tables(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_tbl **t);
 
-int match_get_table_field(FILE *fp, int print, struct nlattr *nl,
+int match_get_table_field(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_hdr *hdr);
 
-int match_get_tbl_graph(FILE *fp, int p, struct nlattr *nl,
+int match_get_tbl_graph(struct mat_stream *matsp, int print, struct nlattr *nl,
 		struct net_mat_tbl_node **ref);
 
-int match_get_hdrs_graph(FILE *fp, int p, struct nlattr *nl,
+int match_get_hdrs_graph(struct mat_stream *matsp, int print, struct nlattr *nl,
 		struct net_mat_hdr_node **ref);
-int match_get_ports(FILE *fp, int p, struct nlattr *nl,
+int match_get_ports(struct mat_stream *matsp, struct nlattr *nl,
 		struct net_mat_port **ports);
-int match_get_port(FILE *fp, int p, struct nlattr *nl,
+int match_get_port(struct mat_stream *matsp, struct nlattr *nl,
 		  struct net_mat_port *ports);
 
 unsigned int match_get_rule_errors(struct nlattr *nl);
@@ -112,17 +113,17 @@ unsigned int find_table(const char *name);
 unsigned int find_header_node(const char *name);
 unsigned int find_field(const char *name, unsigned int hdr);
 
-void pp_action(FILE *fp, int p, struct net_mat_action *ref,
+void pp_action(struct mat_stream *matsp, struct net_mat_action *ref,
 	       bool print_values);
-void pp_actions(FILE *fp, int print, struct net_mat_action *actions);
-void pp_table(FILE *fp, int p, struct net_mat_tbl *ref);
-void pp_header(FILE *fp, int p, struct net_mat_hdr *ref);
-void pp_rules(FILE *fp, int p, struct net_mat_rule *ref);
-void pp_rule(FILE *fp, int p, struct net_mat_rule *ref);
-void pp_table_graph(FILE *fp, int p, struct net_mat_tbl_node *nodes);
-void pp_ports(FILE *fp, int p, struct net_mat_port *port);
-void pp_port(FILE *fp, int p, struct net_mat_port *port);
-void pp_header_graph(FILE *fp, int print,
+void pp_actions(struct mat_stream *matsp, struct net_mat_action *actions);
+void pp_table(struct mat_stream *matsp, struct net_mat_tbl *ref);
+void pp_header(struct mat_stream *matsp, struct net_mat_hdr *ref);
+void pp_rules(struct mat_stream *matsp, struct net_mat_rule *ref);
+void pp_rule(struct mat_stream *matsp, struct net_mat_rule *ref);
+void pp_table_graph(struct mat_stream *matsp, struct net_mat_tbl_node *nodes);
+void pp_ports(struct mat_stream *matsp, struct net_mat_port *port);
+void pp_port(struct mat_stream *matsp, struct net_mat_port *port);
+void pp_header_graph(struct mat_stream *matsp,
                 struct net_mat_hdr_node *nodes);
 
 struct net_mat_hdr *get_headers(unsigned int uid);

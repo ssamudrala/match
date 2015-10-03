@@ -1,5 +1,5 @@
 /*******************************************************************************
-  Match Action Table Configuration Agent 
+  Match Action Table Configuration Agent
   Author: John Fastabend <john.r.fastabend@intel.com>
   Copyright (c) <2015>, Intel Corporation
 
@@ -269,7 +269,7 @@ static void set_port_usage(void)
 	       "[vlans VLAN[,VLAN...] [loopback VAL] [learning VAL] [update_dscp VAL] [update_ttl VAL]"
 	       "[update_dmac VAL] [update_smac VAL] [update_vlan VAL] [mcast_flooding VAL]\n",
 		progname);
-	printf(" state: up down\n"); 
+	printf(" state: up down\n");
 	printf(" speed: integer speed\n");
 	printf(" max_frame_size: integer maximum frame size\n");
 	printf(" def_vlan: integer port's default VLAN (1 - 4095)\n");
@@ -357,11 +357,11 @@ static void match_cmd_get_tables(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	if (match_nl_table_cmd_to_type(stdout, false, NET_MAT_TABLES, tb))
+	if (match_nl_table_cmd_to_type(NULL, NET_MAT_TABLES, tb))
 		return;
 
 	if (tb[NET_MAT_TABLES]) {
-		match_get_tables(stdout, verbose, tb[NET_MAT_TABLES], &tables);
+		match_get_tables(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_TABLES], &tables);
 		match_push_tables_a(tables);
 	}
 }
@@ -378,11 +378,11 @@ static void match_cmd_get_headers(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	if (match_nl_table_cmd_to_type(stdout, false, NET_MAT_HEADERS, tb))
+	if (match_nl_table_cmd_to_type(NULL, NET_MAT_HEADERS, tb))
 		return;
 
 	if (tb[NET_MAT_HEADERS])
-		match_get_headers(stdout, verbose, tb[NET_MAT_HEADERS], NULL);
+		match_get_headers(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_HEADERS], NULL);
 }
 
 static void match_cmd_get_actions(struct match_msg *msg, int verbose)
@@ -397,13 +397,13 @@ static void match_cmd_get_actions(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	if (match_nl_table_cmd_to_type(stdout, false, NET_MAT_ACTIONS, tb))
+	if (match_nl_table_cmd_to_type(NULL, NET_MAT_ACTIONS, tb))
 		return;
 
 	if (tb[NET_MAT_ACTIONS]) {
 		struct net_mat_action *a;
 
-		match_get_actions(stdout, verbose, tb[NET_MAT_ACTIONS], &a);
+		match_get_actions(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_ACTIONS], &a);
 		match_push_actions_ary(a);
 	}
 }
@@ -420,11 +420,11 @@ static void match_cmd_get_headers_graph(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	if (match_nl_table_cmd_to_type(stdout, false, NET_MAT_HEADER_GRAPH, tb))
+	if (match_nl_table_cmd_to_type(NULL, NET_MAT_HEADER_GRAPH, tb))
 		return;
 
 	if (tb[NET_MAT_HEADER_GRAPH])
-		match_get_hdrs_graph(stdout, verbose,
+		match_get_hdrs_graph(verbose ? mat_stream_stdout() : NULL, verbose,
 				tb[NET_MAT_HEADER_GRAPH], NULL);
 }
 
@@ -440,11 +440,11 @@ static void match_cmd_get_table_graph(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	if (match_nl_table_cmd_to_type(stdout, false, NET_MAT_TABLE_GRAPH, tb))
+	if (match_nl_table_cmd_to_type(NULL, NET_MAT_TABLE_GRAPH, tb))
 		return;
 
 	if (tb[NET_MAT_TABLE_GRAPH])
-		match_get_tbl_graph(stdout, verbose,
+		match_get_tbl_graph(verbose ? mat_stream_stdout() : NULL, verbose,
 			tb[NET_MAT_TABLE_GRAPH], NULL);
 }
 
@@ -460,7 +460,7 @@ static void match_cmd_get_rules(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, false, 0, tb);
+	err = match_nl_table_cmd_to_type(NULL, 0, tb);
 	if (err == -ENOMSG) {
 		fprintf(stdout, "Table empty\n");
 		return;
@@ -470,7 +470,7 @@ static void match_cmd_get_rules(struct match_msg *msg, int verbose)
 	}
 
 	if (tb[NET_MAT_RULES])
-		match_get_rules(stdout, verbose, tb[NET_MAT_RULES], NULL);
+		match_get_rules(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_RULES], NULL);
 }
 
 static void match_cmd_set_rules(struct match_msg *msg, int verbose)
@@ -485,13 +485,13 @@ static void match_cmd_set_rules(struct match_msg *msg, int verbose)
 		return;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, false, 0, tb);
+	err = match_nl_table_cmd_to_type(NULL, 0, tb);
 	if (err)
 		return;
 
 	if (tb[NET_MAT_RULES]) {
 		fprintf(stderr, "Failed to set:\n");
-		match_get_rules(stdout, verbose, tb[NET_MAT_RULES], NULL);
+		match_get_rules(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_RULES], NULL);
 	}
 }
 
@@ -567,12 +567,12 @@ match_cmd_get_lport(struct match_msg *msg, int verbose __unused)
 		return;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, false, NET_MAT_PORTS, tb);
+	err = match_nl_table_cmd_to_type(NULL, NET_MAT_PORTS, tb);
 	if (err)
 		return;
 
 	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(stdout, false, tb[NET_MAT_PORTS], &port);
+		err = match_get_ports(NULL, tb[NET_MAT_PORTS], &port);
 		if (err)
 			fprintf(stderr, "Warning: unable to parse get ports\n");
 		else
@@ -595,12 +595,12 @@ match_cmd_get_ports(struct match_msg *msg, int verbose __unused)
 		return;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, false, NET_MAT_PORTS, tb);
+	err = match_nl_table_cmd_to_type(NULL, NET_MAT_PORTS, tb);
 	if (err)
 		return;
 
 	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(stdout, verbose, tb[NET_MAT_PORTS], NULL);
+		err = match_get_ports(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_PORTS], NULL);
 		if (err)
 			fprintf(stderr, "Warning: unable to parse get ports\n");
 	}
@@ -619,12 +619,12 @@ match_cmd_set_ports(struct match_msg *msg, int verbose __unused)
 		return;
 	}
 
-	err = match_nl_table_cmd_to_type(stdout, false, 0, tb);
+	err = match_nl_table_cmd_to_type(NULL, 0, tb);
 	if (err)
 		return;
 
 	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(stdout, verbose, tb[NET_MAT_PORTS], NULL);
+		err = match_get_ports(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_PORTS], NULL);
 		if (err)
 			fprintf(stderr, "Warning: unable to parse get ports\n");
 	}
@@ -1303,7 +1303,7 @@ match_destroy_tbl_send(int verbose, uint32_t pid, int family,
 		return -EINVAL;
 	}
 
-	pp_table(stdout, true, &table);
+	pp_table(mat_stream_stdout(), &table);
 
 	/* open generic netlink socket with match table api */
 	nsd = nl_socket_alloc();
@@ -1667,7 +1667,7 @@ match_create_tbl_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		exit(-1);
 	}
 
-	pp_table(stdout, true, &table);
+	pp_table(mat_stream_stdout(), &table);
 
 	/* open generic netlink socket with match table api */
 	nsd = nl_socket_alloc();
@@ -2064,7 +2064,7 @@ rule_set_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		exit(-1);
 	}
 
-	pp_rule(stdout, true, &rule);
+	pp_rule(mat_stream_stdout(), &rule);
 
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();
@@ -2634,7 +2634,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		exit(-1);
 	}
 
-	pp_port(stdout, true, &port);
+	pp_port(mat_stream_stdout(), &port);
 
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();

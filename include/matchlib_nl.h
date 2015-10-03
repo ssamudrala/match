@@ -30,6 +30,7 @@
 #ifndef _MATCHLIB_NL_H
 #define _MATCHLIB_NL_H
 #include "if_match.h"
+#include "matstream.h"
 
 struct match_msg {
 	void *msg;
@@ -38,6 +39,7 @@ struct match_msg {
 };
 
 void match_nl_set_verbose(int new_verbose);
+void match_nl_set_streamer(struct mat_stream *streamer);
 
 struct nl_sock *match_nl_get_socket(void);
 
@@ -84,7 +86,7 @@ uint32_t match_nl_find_table_with_action(struct net_mat_tbl *tbls,
 void match_nl_free_msg(struct match_msg *msg);
 struct match_msg *match_nl_wrap_msg(struct nlmsghdr *buf);
 struct match_msg *match_nl_recv_msg(struct nl_sock *nsd, int *err);
-int match_nl_table_cmd_to_type(FILE *fp, bool print, int valid,
+int match_nl_table_cmd_to_type(struct mat_stream *msp, int valid,
 			      struct nlattr *tb[]);
 struct match_msg *match_nl_alloc_msg(uint8_t type, uint32_t pid, int flags,
 				   int size, int family);

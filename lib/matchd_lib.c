@@ -1,5 +1,5 @@
 /*******************************************************************************
-  matchd_lib - library for writing backend handler for MATCH Interface 
+  matchd_lib - library for writing backend handler for MATCH Interface
   Author: John Fastabend <john.r.fastabend@intel.com>
   Copyright (c) <2015>, Intel Corporation
 
@@ -425,7 +425,7 @@ static int match_cmd_get_actions(struct nlmsghdr *nlh)
 		err = -EMSGSIZE;
 		goto nla_put_failure;
 	}
-		
+
 	for (i = 0; backend->actions[i] && backend->actions[i]->uid; i++) {
 		err = match_put_action(nlbuf, backend->actions[i]);
 		if (err) {
@@ -712,7 +712,7 @@ match_is_valid_action_arg(struct net_mat_action *a,
 			 struct net_mat_action_arg *args)
 {
 	int i;
-	int err = -EINVAL; /* Start with -EINVAL, change as needed */	
+	int err = -EINVAL; /* Start with -EINVAL, change as needed */
 	enum net_mat_action_arg_type fixed = NET_MAT_ACTION_ARG_TYPE_UNSPEC;
 
 	if (!a)
@@ -885,7 +885,7 @@ match_is_valid_rule(struct net_mat_tbl *table, struct net_mat_rule *rule)
 	struct net_mat_field_ref *fields;
 	__u32 *actions;
 	int i;
-	int err = -EINVAL; /* Start with -EINVAL, change as needed */	
+	int err = -EINVAL; /* Start with -EINVAL, change as needed */
 
 	/* Only accept rules with matches AND actions it does not seem
 	* correct to allow a match without actions or action chains
@@ -1054,11 +1054,11 @@ static int match_cmd_rules(struct nlmsghdr *nlh)
 		error_method = nla_get_u32(tb[NET_MAT_RULES_ERROR]);
 
 	/* Generates a null terminated list of rules for processing */
-	err = match_get_rules(stdout, true, tb[NET_MAT_RULES], &rule);
+	err = match_get_rules(mat_stream_stdout(), tb[NET_MAT_RULES], &rule);
 	if (err) {
 		MAT_LOG(ERR, "Warning received an invalid set_rule oper\n");
 		goto nla_put_failure;
-	} 
+	}
 
 	err = match_cmd_resolve_rules(rule, glh->cmd, error_method, nlbuf);
 	if (err && (error_method < NET_MAT_RULES_ERROR_CONTINUE + 1)) {
@@ -1317,7 +1317,7 @@ static int match_cmd_table(struct nlmsghdr *nlh)
 	}
 
 	/* Generates a null terminated list of rules for processing */
-	err = match_get_tables(stdout, false, tb[NET_MAT_TABLES], &tables);
+	err = match_get_tables(NULL, tb[NET_MAT_TABLES], &tables);
 	if (err)
 		goto nla_put_failure;
 
@@ -1327,7 +1327,7 @@ static int match_cmd_table(struct nlmsghdr *nlh)
 		table->source (* where to place it *)
 		table->size   (* how many rule entries *)
 		table->matches (* null terminated matches it needs to support *)
-		table->actions (* num terminated list of action ids *) 
+		table->actions (* num terminated list of action ids *)
 
 	*/
 
@@ -1340,7 +1340,7 @@ static int match_cmd_table(struct nlmsghdr *nlh)
 				err = -EINVAL;
 				goto nla_put_failure;
 			}
-			pp_table(stdout, true, &tables[i]);
+			pp_table(mat_stream_stdout(), &tables[i]);
 
 			MAT_LOG(ERR, "%s: destroy table %d\n",
 					__func__, tables[i].uid);
@@ -1375,7 +1375,7 @@ static int match_cmd_table(struct nlmsghdr *nlh)
 				err = -EINVAL;
 				goto nla_put_failure;
 			}
-			pp_table(stdout, true, &tables[i]);
+			pp_table(mat_stream_stdout(), &tables[i]);
 
 			if (tables[i].uid > MAX_MOCK_TABLES - 1) {
 				MAT_LOG(ERR, "create table request greater "
@@ -1657,7 +1657,7 @@ static int match_cmd_set_ports(struct nlmsghdr *nlh)
 	if (!tb[NET_MAT_PORTS])
 		return -EINVAL;
 
-	err = match_get_ports(stderr, true, tb[NET_MAT_PORTS], &p);
+	err = match_get_ports(mat_stream_stderr(), tb[NET_MAT_PORTS], &p);
 	if (err) {
 		MAT_LOG(ERR, "get_ports failed.\n");
 		return err;
@@ -1746,7 +1746,7 @@ static int match_cmd_get_port(struct nlmsghdr *nlh, uint8_t cmd)
 			continue;
 		}
 
-		err = match_get_port(stdout, true, i, &ports[count]);
+		err = match_get_port(mat_stream_stdout(), i, &ports[count]);
 		if (err) {
 			MAT_LOG(ERR, "Error: invalid port message\n");
 			free(ports);

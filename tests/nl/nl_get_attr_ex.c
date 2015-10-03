@@ -21,6 +21,8 @@
 #include "if_match.h"
 #include "matchlib.h"
 #include "matchlib_nl.h"
+#include "matstream.h"
+
 
 int main(void)
 {
@@ -65,7 +67,7 @@ int main(void)
 		free(headers);
 		return -EINVAL;
 	}
-	pp_header_graph(stdout, true, hdr_gph_node);
+	pp_header_graph(mat_stream_stdout(), hdr_gph_node);
 	free(hdr_gph_node);
 	free(headers);
 	printf("\n");
@@ -93,7 +95,7 @@ int main(void)
 		free(actions);
 		return -EINVAL;
 	}
-	pp_table_graph(stdout, true, tbl_gph_node);
+	pp_table_graph(mat_stream_stdout(), tbl_gph_node);
 	free(tbl_gph_node);
 	free(tables);
 	free(actions);
@@ -108,7 +110,7 @@ int main(void)
 		return -EINVAL;
 	}
 	for (i = 0 ; headers[i].uid ; i++)
-		pp_header(stdout, true, &headers[i]);
+		pp_header(mat_stream_stdout(), &headers[i]);
 	free(headers);
 	printf("\n");
 
@@ -120,7 +122,7 @@ int main(void)
 		fprintf(stderr, "Error: get_actions failed\n");
 		return -EINVAL;
 	}
-	pp_actions(stdout, true, actions);
+	pp_actions(mat_stream_stdout(), actions);
 	free(actions);
 	printf("\n");
 
@@ -155,7 +157,7 @@ int main(void)
 		return -EINVAL;
 	}
 	for (i = 0 ; tables[i].uid ; i++)
-		pp_table(stdout, true, &tables[i]);
+		pp_table(mat_stream_stdout(), &tables[i]);
 	free(tables);
 	free(actions);
 	free(hdr_gph_node);
@@ -170,7 +172,7 @@ int main(void)
 		fprintf(stderr, "Error: get_ports failed\n");
 		return -EINVAL;
 	}
-	pp_ports(stdout, true, ports);
+	pp_ports(mat_stream_stdout(), ports);
 	free(ports);
 	printf("\n");
 
