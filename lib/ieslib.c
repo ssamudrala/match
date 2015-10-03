@@ -3145,15 +3145,15 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 			switch (matches[i].field) {
 			case HEADER_IPV6_SRC_IP:
 				cond |= FM_FLOW_MATCH_SRC_IP;
-				condVal.srcIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
-				condVal.srcIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
-				condVal.srcIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
-				condVal.srcIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.srcIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.srcIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.srcIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.srcIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[0];
 				condVal.srcIp.isIPv6 = TRUE;
-				condVal.srcIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
-				condVal.srcIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
-				condVal.srcIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
-				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.srcIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.srcIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.srcIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.srcIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[0];
 				condVal.srcIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
 				{
@@ -3163,22 +3163,22 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				MAT_LOG(DEBUG, "%s: match SRC_IP(a: %s m: %s)\n",
 					__func__,
 					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
-					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, mask, sizeof(mask)));
+					inet_ntop(AF_INET6, &matches[i].v.in6.mask_in6, mask, sizeof(mask)));
 				}
 #endif /* DEBUG */
 
 				break;
 			case HEADER_IPV6_DST_IP:
 				cond |= FM_FLOW_MATCH_DST_IP;
-				condVal.dstIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[0];
-				condVal.dstIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[1];
-				condVal.dstIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[2];
-				condVal.dstIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.dstIp.addr[0] = matches[i].v.in6.value_in6.s6_addr32[3];
+				condVal.dstIp.addr[1] = matches[i].v.in6.value_in6.s6_addr32[2];
+				condVal.dstIp.addr[2] = matches[i].v.in6.value_in6.s6_addr32[1];
+				condVal.dstIp.addr[3] = matches[i].v.in6.value_in6.s6_addr32[0];
 				condVal.dstIp.isIPv6 = TRUE;
-				condVal.dstIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[0];
-				condVal.dstIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[1];
-				condVal.dstIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[2];
-				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.dstIpMask.addr[0] = matches[i].v.in6.mask_in6.s6_addr32[3];
+				condVal.dstIpMask.addr[1] = matches[i].v.in6.mask_in6.s6_addr32[2];
+				condVal.dstIpMask.addr[2] = matches[i].v.in6.mask_in6.s6_addr32[1];
+				condVal.dstIpMask.addr[3] = matches[i].v.in6.mask_in6.s6_addr32[0];
 				condVal.dstIpMask.isIPv6 = TRUE;
 #ifdef DEBUG
 				{
@@ -3188,7 +3188,7 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				MAT_LOG(DEBUG, "%s: match DST_IP(a: %s m: %s\n",
 					__func__,
 					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, addr, sizeof(addr)),
-					inet_ntop(AF_INET6, &matches[i].v.in6.value_in6, mask, sizeof(mask)));
+					inet_ntop(AF_INET6, &matches[i].v.in6.mask_in6, mask, sizeof(mask)));
 				}
 #endif /* DEBUG */
 

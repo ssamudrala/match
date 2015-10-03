@@ -183,12 +183,12 @@ enum ies_header_ids {
 	HEADER_VLAN,
 	HEADER_VXLAN,
 	HEADER_IPV4,
+	HEADER_IPV6,
 	HEADER_TCP,
 	HEADER_UDP,
 	HEADER_METADATA,
 	HEADER_VXLAN_GPE,
 	HEADER_NSH,
-	HEADER_IPV6,
 };
 
 enum ies_header_ethernet_ids {
@@ -564,13 +564,13 @@ static struct net_mat_hdr *my_header_list[] = {
 	&ethernet,
 	&vlan,
 	&ipv4,
+	&ipv6,
 	&tcp,
 	&udp,
 	&vxlan,
 	&metadata_t,
 	&vxlan_gpe,
 	&nsh,
-	&ipv6,
 	NULL,
 };
 
@@ -1008,6 +1008,7 @@ enum ies_header_instance {
 	HEADER_INSTANCE_VLAN_OUTER,
 	HEADER_INSTANCE_VLAN_INNER,
 	HEADER_INSTANCE_IPV4,
+	HEADER_INSTANCE_IPV6,
 	HEADER_INSTANCE_TCP,
 	HEADER_INSTANCE_UDP,
 	HEADER_INSTANCE_VXLAN,
@@ -1025,7 +1026,6 @@ enum ies_header_instance {
 	HEADER_INSTANCE_L2_MP_METADATA,
 	HEADER_INSTANCE_VXLAN_GPE,
 	HEADER_INSTANCE_NSH,
-	HEADER_INSTANCE_IPV6,
 };
 
 static struct net_mat_field_ref matches_nexthop[] = {
@@ -1221,6 +1221,16 @@ static struct net_mat_field_ref matches_tcam[] = {
 	{ .instance = HEADER_INSTANCE_IPV4,
 	  .header = HEADER_IPV4,
 	  .field = HEADER_IPV4_SRC_IP,
+	  .mask_type = NET_MAT_MASK_TYPE_MASK},
+
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_DST_IP,
+	  .mask_type = NET_MAT_MASK_TYPE_MASK},
+
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_SRC_IP,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
 	{ .instance = HEADER_INSTANCE_TCP,
@@ -1869,6 +1879,7 @@ static struct net_mat_hdr_node *my_hdr_nodes[] = {
 	&my_header_node_ethernet,
 	&my_header_node_vlan,
 	&my_header_node_ipv4,
+	&my_header_node_ipv6,
 	&my_header_node_udp,
 	&my_header_node_tcp,
 	&my_header_node_vxlan,
@@ -1885,7 +1896,6 @@ static struct net_mat_hdr_node *my_hdr_nodes[] = {
 	&my_header_node_l2mp_metadata,
 	&my_header_node_vxlan_gpe,
 	&my_header_node_nsh,
-	&my_header_node_ipv6,
 	NULL,
 };
 
