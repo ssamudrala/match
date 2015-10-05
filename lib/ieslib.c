@@ -1647,6 +1647,10 @@ int switch_init(bool one_vlan)
 	fm_int		le = FM_DISABLED; /* disable FM_PORT_LEARNING */
 	fm_uint32	defvlan;
 	fm_int          fs = MATCH_DEFAULT_MAX_FRAME_SIZE;
+	/* flood bcast, mcast, and unknown ucast frames on all ports */
+	fm_int          bf = FM_BCAST_FWD;
+	fm_int          mf = FM_MCAST_FWD;
+	fm_int          uf = FM_UCAST_FWD;
 	fm_logCallBackSpec logCallBackSpec;
 #ifdef VXLAN_MCAST
 	int		i;
@@ -1803,6 +1807,18 @@ int switch_init(bool one_vlan)
 #if MATCH_DISABLE_IES_TAGGING == 1
 	disable_ies_tagging();
 #endif
+
+	err = fmSetSwitchAttribute(sw, FM_BCAST_FLOODING, &bf);
+	if (err != FM_OK)
+		return cleanup("fmSetSwitchAttribute", err);
+
+	err = fmSetSwitchAttribute(sw, FM_MCAST_FLOODING, &mf);
+	if (err != FM_OK)
+		return cleanup("fmSetSwitchAttribute", err);
+
+	err = fmSetSwitchAttribute(sw, FM_UCAST_FLOODING, &uf);
+	if (err != FM_OK)
+		return cleanup("fmSetSwitchAttribute", err);
 
 	MAT_LOG(DEBUG, "Switch is UP, all ports are now enabled\n");
 
