@@ -2439,6 +2439,9 @@ int switch_create_TCAM_table(__u32 table_id, struct net_mat_field_ref *matches, 
 			case HEADER_IPV6_NEXT_HEADER:
 				condition |= FM_FLOW_MATCH_PROTOCOL;
 				break;
+			case HEADER_IPV6_TRAFFIC_CLASS:
+				condition |= FM_FLOW_MATCH_TOS;
+				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_IPV6, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;
@@ -3211,13 +3214,20 @@ int switch_add_TCAM_rule_entry(__u32 *flowid, __u32 table_id, __u32 priority, st
 				break;
 			case HEADER_IPV6_NEXT_HEADER:
 				cond |= FM_FLOW_MATCH_PROTOCOL;
-				condVal.protocol = (fm_byte)matches[i].v.u16.value_u16;
-				condVal.protocolMask = (fm_byte)matches[i].v.u16.mask_u16;
+				condVal.protocol = (fm_byte)matches[i].v.u8.value_u8;
+				condVal.protocolMask = (fm_byte)matches[i].v.u8.mask_u8;
 #ifdef DEBUG
 				MAT_LOG(DEBUG, "%s: match PROTOCOL(0x%08x:0x%08x)\n", __func__, condVal.protocol, condVal.protocolMask);
 #endif /* DEBUG */
 				break;
-
+			case HEADER_IPV6_TRAFFIC_CLASS:
+				cond |= FM_FLOW_MATCH_TOS;
+				condVal.tos = (fm_byte)matches[i].v.u8.value_u8;
+				condVal.tosMask = (fm_byte)matches[i].v.u8.mask_u8;
+#ifdef DEBUG
+                                MAT_LOG(DEBUG, "%s: match IPv6 Traffic Class(0x%08x:0x%08x)\n", __func__, condVal.tos, condVal.tosMask);
+#endif /* DEBUG */
+				break;
 			default:
 				MAT_LOG(ERR, "%s: match error in HEADER_INSTANCE_IPV6, field=%d\n", __func__, matches[i].field);
 				err = -EINVAL;

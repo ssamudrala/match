@@ -1233,6 +1233,16 @@ static struct net_mat_field_ref matches_tcam[] = {
 	  .field = HEADER_IPV6_SRC_IP,
 	  .mask_type = NET_MAT_MASK_TYPE_MASK},
 
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_TRAFFIC_CLASS,
+	  .mask_type = NET_MAT_MASK_TYPE_MASK},
+
+	{ .instance = HEADER_INSTANCE_IPV6,
+	  .header = HEADER_IPV6,
+	  .field = HEADER_IPV6_NEXT_HEADER,
+	  .mask_type = NET_MAT_MASK_TYPE_MASK},
+
 	{ .instance = HEADER_INSTANCE_TCP,
 	  .header = HEADER_TCP,
 	  .field = HEADER_TCP_SRC_PORT,
