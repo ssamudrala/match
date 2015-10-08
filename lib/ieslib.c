@@ -3641,6 +3641,8 @@ int switch_create_TE_table(int te, __u32 table_id, struct net_mat_field_ref *mat
 	int te_direct = FALSE;
 	int te_encap = FALSE;
 	int te_decap = FALSE;
+	int te_group;
+	fm_bool set_default_sglort = TRUE;
 	int i;
 	for (i = 0; matches && matches[i].instance; i++) {
 		switch (matches[i].instance) {
@@ -3825,8 +3827,26 @@ int switch_create_TE_table(int te, __u32 table_id, struct net_mat_field_ref *mat
 	 * to explicitely set the destination port to support NSH.
 	 */
 	err = switch_tunnel_engine_set_default_nge_port(te, MATCH_NSH_PORT);
-	if (err != FM_OK)
+	if (err != FM_OK) {
+		fmDeleteFlowTETable(sw, (int)table_id);
+		MAT_LOG(ERR, "Cannot configure tunnel engine ports\n");
 		return -EINVAL;
+	}
+
+	err = fmGetFlowAttribute(sw, (int)table_id,
+	                         FM_FLOW_TABLE_TUNNEL_GROUP, &te_group);
+	if (err != FM_OK) {
+		fmDeleteFlowTETable(sw, (int)table_id);
+		return cleanup("fmGetFlowAttribute", err);
+	}
+
+	err = fmSetTunnelAttribute(sw, te_group, 0,
+	                           FM_TUNNEL_SET_DEFAULT_SGLORT,
+	                           &set_default_sglort);
+	if (err != FM_OK) {
+		fmDeleteFlowTETable(sw, (int)table_id);
+		return cleanup("fmSetTunnelAttribute", err);
+	}
 
 	return 0;
 }
