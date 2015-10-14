@@ -1266,16 +1266,16 @@ static int match_check_field_mask(__u32 exp, __u32 req)
 static int match_check_field_masks(struct net_mat_tbl *table,
                                    struct net_mat_tbl *new_table)
 {
-	int i;
-	int j;
+	struct net_mat_field_ref *f1;
+	struct net_mat_field_ref *f2;
 
-	for (i = 0; new_table->matches[i].instance; ++i) {
-		for (j = 0; table->matches[j].instance; ++j) {
-			if (new_table->matches[i].instance ==
-			    table->matches[j].instance) {
-				return match_check_field_mask(
-				          table->matches[j].mask_type,
-				          new_table->matches[i].mask_type);
+	for (f2 = new_table->matches; f2 && f2->instance; ++f2) {
+		for (f1 = table->matches; f1 && f1->instance; ++f1) {
+			if (f1->instance == f2->instance &&
+			    f1->field == f2->field) {
+				if (match_check_field_mask(f1->mask_type,
+				                           f2->mask_type))
+					return -EINVAL;
 			}
 		}
 	}
