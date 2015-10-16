@@ -2310,6 +2310,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	struct match_msg *msg;
 	int err = 0;
 	struct net_mat_port port;
+	struct net_mat_port *port_be = NULL;
 
 	memset(&port, 0, sizeof(port));
 	port.vlan.def_priority = NET_MAT_PORT_T_DEF_PRI_UNSPEC;
@@ -2634,8 +2635,6 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		exit(-1);
 	}
 
-	pp_port(mat_stream_stdout(), &port);
-
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
@@ -2677,6 +2676,14 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	else
 		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
 	match_nl_free_msg(msg);
+
+	port_be = match_nl_get_ports(nsd, pid, 0, family, port.port_id, port.port_id);
+	if (!port_be) {
+		fprintf(stderr, "Error: match_nl_get_ports failed\n");
+		return -EINVAL;
+	}
+	pp_port(mat_stream_stdout(), port_be);
+
 	return err;
 }
 int
