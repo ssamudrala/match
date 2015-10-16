@@ -2332,6 +2332,19 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				set_port_usage();
 				return -EINVAL;
 			}
+
+			/* Reading and caching existing vlan membership here so that it
+			 * does not get reset when other settings for the port are changed.
+			 */
+			port_be = match_nl_get_ports(nsd, pid, 0, family, port.port_id, port.port_id);
+			if (!port_be) {
+				fprintf(stderr, "Error: match_nl_get_ports failed\n");
+				return -EINVAL;
+			}
+			memcpy(port.vlan.vlan_membership_bitmask,
+				port_be->vlan.vlan_membership_bitmask,
+				(sizeof(__u8))*512);
+
 		} else if (strcmp(*argv, "speed") == 0) {
 			next_arg();
 			if (*argv == NULL) {
@@ -2677,6 +2690,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
 	match_nl_free_msg(msg);
 
+	/* Reading updated port settings from backend here to display to user */
 	port_be = match_nl_get_ports(nsd, pid, 0, family, port.port_id, port.port_id);
 	if (!port_be) {
 		fprintf(stderr, "Error: match_nl_get_ports failed\n");
