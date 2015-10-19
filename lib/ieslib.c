@@ -959,6 +959,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool mcast_flooding = FM_DISABLED;
 	fm_bool is_pcie_port = FALSE;
 	fm_uint32 update_frame;
+	fm_uint16 def_vlan;
 	int err = 0;
 
 	fmGetSwitchInfo(sw, &swInfo);
@@ -1017,20 +1018,28 @@ static int ies_ports_set(struct net_mat_port *ports)
 			}
 		}
 
+		err = fmGetPortAttribute(sw, port, FM_PORT_DEF_VLAN, &def_vlan);
+		if (err) {
+			MAT_LOG(ERR, "Error: GetPortAttribute FM_PORT_DEF_VLAN failed:%s\n", fmErrorMsg(err));
+			return -EINVAL;
+		}
+
 		if (p->vlan.vlan_membership_bitmask) {
 			fm_uint16 vlan;
-			fm_bool tag = !is_pcie_port;
+			fm_bool tag;
 
 			for (vlan = 0; vlan < MAX_VLAN; vlan++) {
 				int slot = vlan / 8;
 				int index = vlan % 8;
 
 				if (0x1 & (p->vlan.vlan_membership_bitmask[slot] >> index)) {
+					tag = ((vlan != def_vlan) &&
+						!is_pcie_port);
 					err = fmAddVlanPort(sw, vlan, port, tag);
 					if (err != FM_OK)
 						return cleanup("fmAddVlanPort", err);
 
-					MAT_LOG(DEBUG, "add port %d to vlan %u (%i:%i)\n", port, vlan, slot, index);
+					MAT_LOG(DEBUG, "add port %d to vlan %u tag %d (%i:%i)\n", port, vlan, tag, slot, index);
 
 					err = fmSetVlanPortState(sw, vlan, port, FM_STP_STATE_FORWARDING);
 					if (err != FM_OK)
