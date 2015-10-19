@@ -959,12 +959,11 @@ static int ies_ports_set(struct net_mat_port *ports)
 	fm_bool mcast_flooding = FM_DISABLED;
 	fm_bool is_pcie_port = FALSE;
 	fm_uint32 update_frame;
-	int i, err = 0;
+	int err = 0;
 
 	fmGetSwitchInfo(sw, &swInfo);
 
-	for (p = &ports[0], i = 0; p->port_id != NET_MAT_PORT_ID_UNSPEC;
-	     p = &ports[i], i++) {
+	for (p = ports; p->port_id != NET_MAT_PORT_ID_UNSPEC; p++) {
 		fm_int port = (int)p->port_id;
 
 		err = fmIsPciePort(sw, port, &is_pcie_port);
@@ -1031,7 +1030,7 @@ static int ies_ports_set(struct net_mat_port *ports)
 					if (err != FM_OK)
 						return cleanup("fmAddVlanPort", err);
 
-					MAT_LOG(DEBUG, "add port %i:%d to vlan %u (%i:%i)\n", i, port, vlan, slot, index);
+					MAT_LOG(DEBUG, "add port %d to vlan %u (%i:%i)\n", port, vlan, slot, index);
 
 					err = fmSetVlanPortState(sw, vlan, port, FM_STP_STATE_FORWARDING);
 					if (err != FM_OK)
