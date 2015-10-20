@@ -2311,6 +2311,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	int err = 0;
 	struct net_mat_port port;
 	struct net_mat_port *port_be = NULL;
+	bool have_vlans = false;
 
 	memset(&port, 0, sizeof(port));
 	port.vlan.def_priority = NET_MAT_PORT_T_DEF_PRI_UNSPEC;
@@ -2341,9 +2342,6 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				fprintf(stderr, "Error: match_nl_get_ports failed\n");
 				return -EINVAL;
 			}
-			memcpy(port.vlan.vlan_membership_bitmask,
-				port_be->vlan.vlan_membership_bitmask,
-				(sizeof(__u8))*512);
 
 		} else if (strcmp(*argv, "speed") == 0) {
 			next_arg();
@@ -2502,6 +2500,9 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				port.vlan.vlan_membership_bitmask[slot] |= (__u8) (1UL << index);
 				vlan = strtok(NULL, ",");
 			}
+
+			have_vlans = true;
+
 		} else if (strcmp(*argv, "loopback") == 0) {
 			next_arg();
 			if (*argv == NULL) {
@@ -2652,6 +2653,12 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		set_port_usage();
 		exit(-1);
 	}
+
+	/* if vlans are not specified, re-use old vlan membership */
+	if (!have_vlans)
+		memcpy(port.vlan.vlan_membership_bitmask,
+		       port_be->vlan.vlan_membership_bitmask,
+		       sizeof(port.vlan.vlan_membership_bitmask));
 
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();
