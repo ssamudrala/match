@@ -2480,6 +2480,11 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 				return -EINVAL;
 			}
 
+			/* Zero out the cached vlan information since there is new membership
+			 * being set now.
+			 */
+			memset(port.vlan.vlan_membership_bitmask, 0, (sizeof(__u8))*512);
+
 			while (vlan) {
 				int vid, slot;
 				__u8 index;
