@@ -558,6 +558,33 @@ static void ies_get_pkt_stats(struct net_mat_port_stats *s, fm_portCounters *c)
 	s->tx_broadcast_bytes = c->cntTxBcstOctets;
 }
 
+/*
+ * Determine whether or not a port is configurable
+ *
+ * Do not read/write attributes for internal ports such as the Tunnel
+ * Engine (and other internal ports), or disabled ports such as those whose
+ * lanes are grouped into another port, or special ports such as the
+ * Tunnel Engine, loopback, and FIBM.
+ *
+ * @param port The port id
+ * @return true If the port is configurable, otherwise false
+ */
+static bool ies_port_is_configurable(fm_int port)
+{
+	fm_bool test;
+
+	if (fmGetPortAttribute(sw, port, FM_PORT_INTERNAL, &test) || test)
+		return false;
+
+	if (fmIsPortDisabled(sw, port, 0, &test) || test)
+		return false;
+
+	if (fmIsSpecialPort(sw, port, &test) || test)
+		return false;
+
+	return true;
+}
+
 static int ies_ports_get(struct net_mat_port **ports)
 {
 	struct net_mat_port *p;
@@ -576,7 +603,6 @@ static int ies_ports_get(struct net_mat_port **ports)
 	for (i = 0, cpi = 0 ; cpi < swInfo.numCardPorts ; cpi++)  {
 		fm_int err;
 		fm_int port;
-		fm_bool	pi = FM_DISABLED;
 		fm_bool drop_tagged = FM_DISABLED;
 		fm_bool drop_untagged = FM_DISABLED;
 		fm_int loopback = FM_PORT_LOOPBACK_OFF;
@@ -595,14 +621,11 @@ static int ies_ports_get(struct net_mat_port **ports)
 			return cleanup("fmMapCardinalPort", err);
 		}
 
-		err = fmGetPortAttribute(sw, port, FM_PORT_INTERNAL, &pi);
-		if (err != FM_OK) {
-			cleanup("fmGetPortAttribute", err);
+		if (!ies_port_is_configurable(port)) {
+			MAT_LOG(DEBUG, "Skipping unconfigurable port %d\n",
+			        port);
 			continue;
 		}
-
-		if (pi == FM_ENABLED)
-			continue;
 
 		err = fmGetPortAttribute(sw, port, FM_PORT_SPEED, &speed);
 		if (err != FM_OK) {
@@ -966,6 +989,12 @@ static int ies_ports_set(struct net_mat_port *ports)
 
 	for (p = ports; p->port_id != NET_MAT_PORT_ID_UNSPEC; p++) {
 		fm_int port = (int)p->port_id;
+
+		if (!ies_port_is_configurable(port)) {
+			MAT_LOG(ERR, "Error: port %d cannot be configured\n",
+			        port);
+			return -EINVAL;
+		}
 
 		err = fmIsPciePort(sw, port, &is_pcie_port);
 		if (err) {
