@@ -1041,13 +1041,15 @@ static int ies_ports_set(struct net_mat_port *ports)
 
 					MAT_LOG(DEBUG, "add port %d to vlan %u tag %d (%i:%i)\n", port, vlan, tag, slot, index);
 
-					err = fmSetVlanPortState(sw, vlan, port, FM_STP_STATE_FORWARDING);
-					if (err != FM_OK)
-						return cleanup("fmSetVlanPortState", err);
 				} else {
 					err = fmDeleteVlanPort(sw, vlan, port);
 				}
 			}
+
+			err = fmSetSpanningTreePortState(sw, 0, port,
+					FM_STP_STATE_FORWARDING);
+			if (err != FM_OK)
+				return cleanup("fmSetSpanningTreePortState", err);
 		}
 
 		switch (p->vlan.drop_tagged) {
