@@ -2119,7 +2119,7 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	struct match_msg *msg;
 	struct nlattr *nest0, *nest1;
 	int ret, err;
-	uint32_t min = 0, max = 0;
+	uint32_t min = NET_MAT_PORT_ID_UNSPEC, max = NET_MAT_PORT_ID_UNSPEC;
 
 	memset(&port, 0, sizeof(port));
 	port.port_id = NET_MAT_PORT_ID_UNSPEC;
@@ -2257,7 +2257,7 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		return -EMSGSIZE;
 	}
 
-	if (max) {
+	if (max != NET_MAT_PORT_ID_UNSPEC) {
 		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MAX_INDEX, max);
 		if (err) {
 			fprintf(stderr, "Error: put max port failed\n");
@@ -2266,7 +2266,7 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		}
 	}
 
-	if (min) {
+	if (min != NET_MAT_PORT_ID_UNSPEC) {
 		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MIN_INDEX, min);
 		if (err) {
 			fprintf(stderr, "Error: put max port failed\n");

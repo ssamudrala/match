@@ -590,13 +590,13 @@ struct net_mat_port *match_nl_get_ports(struct nl_sock *nsd, uint32_t pid,
 		MAT_LOG(ERR, "Error: get_port attributes failed\n");
 		goto out;
 	}
-	if (min) {
+	if (min != NET_MAT_PORT_ID_UNSPEC) {
 		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MIN_INDEX,
                                 min);
 		if (err)
 			goto out;
 	}
-	if (max) {
+	if (max != NET_MAT_PORT_ID_UNSPEC) {
 		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MAX_INDEX,
                                 max);
 		if (err)
