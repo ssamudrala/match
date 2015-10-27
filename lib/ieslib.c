@@ -1843,6 +1843,12 @@ int switch_init(bool one_vlan)
 
 	MAT_LOG(DEBUG, "set pvid for  port %d to vlan %u\n", port, vlan);
 
+	err = fmSetPortAttribute(sw, port, FM_PORT_LEARNING, &le);
+	if (err != FM_OK)
+		return cleanup("fmSetPortAttribute", err);
+
+	MAT_LOG(DEBUG, "set FM_PORT_LEARNING for port %d to %d\n", port, le);
+
 #if MATCH_DISABLE_IES_TAGGING == 1
 	disable_ies_tagging();
 #endif
