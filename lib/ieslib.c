@@ -1818,6 +1818,8 @@ int switch_init(bool one_vlan)
 		} else
 			MAT_LOG(DEBUG, "not setting FM_PORT_MAX_FRAME_SIZE for port %d\n", port);
 
+		/* enable learning only for Ethernet ports */
+		le = !is_pcie;
 		err = fmSetPortAttribute(sw, port, FM_PORT_LEARNING, &le);
 		if (err != FM_OK)
 			return cleanup("fmSetPortAttribute", err);
@@ -1843,6 +1845,7 @@ int switch_init(bool one_vlan)
 
 	MAT_LOG(DEBUG, "set pvid for  port %d to vlan %u\n", port, vlan);
 
+	le = FM_DISABLED;
 	err = fmSetPortAttribute(sw, port, FM_PORT_LEARNING, &le);
 	if (err != FM_OK)
 		return cleanup("fmSetPortAttribute", err);
