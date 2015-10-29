@@ -131,7 +131,6 @@ struct net_mat_action {
  * @struct net_mat_field_ref
  * @brief uniquely identify field as instance:header:field tuple
  *
- * @next_node next node in jump table otherwise ignored
  * @instance identify unique instance of field reference
  * @header   identify unique header reference
  * @field    identify unique field in above header reference
