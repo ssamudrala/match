@@ -9,7 +9,9 @@ include_HEADERS = $(top_srcdir)/include/backend.h \
                   $(top_srcdir)/include/ieslib.h \
                   $(top_srcdir)/include/matlog.h \
                   $(top_srcdir)/include/matstream.h \
-                  $(top_srcdir)/include/if_match.h
+                  $(top_srcdir)/include/if_match.h \
+                  $(top_srcdir)/include/match_version.h \
+                  $(top_srcdir)/models/ies_pipeline.h
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = dist/match-interface.pc \
