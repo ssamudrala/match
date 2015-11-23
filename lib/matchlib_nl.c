@@ -59,6 +59,13 @@
 #include "matlog.h"
 #include "matstream.h"
 
+
+struct match_msg {
+	void *msg;
+	struct nl_msg *nlbuf;
+	uint32_t seq;
+};
+
 static int verbose = 0;
 static struct mat_stream *matsp = NULL;
 
@@ -83,7 +90,7 @@ void match_nl_set_streamer(struct mat_stream *streamer)
 	matsp = streamer;
 }
 
-void match_nl_free_msg(struct match_msg *msg)
+static void match_nl_free_msg(struct match_msg *msg)
 {
 	if(msg) {
 		if (msg->nlbuf)
@@ -93,6 +100,63 @@ void match_nl_free_msg(struct match_msg *msg)
 		free(msg);
 	}
 }
+
+static struct match_msg *match_nl_wrap_msg(struct nlmsghdr *buf)
+{
+	struct match_msg *msg;
+
+	msg = (struct match_msg *) malloc(sizeof(struct match_msg));
+	if (msg) {
+		msg->msg = buf;
+		msg->nlbuf = NULL;
+	}
+
+	return msg;
+}
+
+static struct match_msg *match_nl_wrap_nl_msg(struct nl_msg *nlmsg)
+{
+	struct match_msg *msg;
+
+	msg = malloc(sizeof(*msg));
+	if (msg) {
+		msg->nlbuf = nlmsg;
+		msg->msg = nlmsg_hdr(nlmsg);
+	}
+
+	return msg;
+}
+
+static struct match_msg *match_nl_alloc_msg(uint8_t type, uint32_t pid,
+					    int flags, int size, int family)
+{
+	struct match_msg *msg;
+	static uint32_t seq = 1;
+
+	msg = (struct match_msg *) malloc(sizeof(struct match_msg));
+	if (!msg)
+		return NULL;
+
+	msg->nlbuf = nlmsg_alloc();
+
+	msg->msg = genlmsg_put(msg->nlbuf, 0, seq, family, (int)size, flags,
+			       type, NET_MAT_GENL_VERSION);
+
+	msg->seq = seq++;
+
+	if (pid) {
+		struct nl_msg *nl_msg = msg->nlbuf;
+		struct sockaddr_nl nladdr = {
+			.nl_family = AF_NETLINK,
+			.nl_pid = pid,
+			.nl_groups = 0,
+		};
+
+		nlmsg_set_dst(nl_msg, &nladdr);
+	}
+	return msg;
+}
+
 
 struct nl_sock *match_nl_get_socket(void)
 {
@@ -126,52 +190,115 @@ uint32_t match_pid_lookup(void)
 }
 
 
-struct match_msg *match_nl_alloc_msg(uint8_t type, uint32_t pid,
-				   int flags, int size, int family)
+static void match_nl_handle_error(struct nlmsgerr *errmsg)
 {
+	MAT_LOG(ERR, "Error processing request: %s\n",
+		strerror(errmsg->error));
+}
+
+typedef int (* match_nl_msg_composer_fn_t)(struct match_msg *msg, void *composer_arg);
+typedef int (* match_nl_msg_handler_fn_t)(struct match_msg *msg, void *handler_arg);
+
+struct match_nl_recvmsg_msg_cb_adapter_ctxt {
+	match_nl_msg_handler_fn_t handler;
+	void *handler_arg;
+	int handler_err;
+};
+
+static int match_nl_recvmsg_msg_cb_adapter(struct nl_msg *nlmsg, void *arg)
+{
+	struct match_nl_recvmsg_msg_cb_adapter_ctxt *ctxt = arg;
+	int err;
 	struct match_msg *msg;
-	static uint32_t seq = 0;
+	int type;
+	struct genlmsghdr *glm;
 
-	msg = (struct match_msg *) malloc(sizeof(struct match_msg));
-	if (!msg)
-		return NULL;
 
-	msg->nlbuf = nlmsg_alloc();
-
-	msg->msg = genlmsg_put(msg->nlbuf, 0, seq, family, (int)size, flags,
-			       type, NET_MAT_GENL_VERSION);
-
-	msg->seq = seq++;
-
-	if (pid) {
-		struct nl_msg *nl_msg = msg->nlbuf;
-		struct sockaddr_nl nladdr = {
-			.nl_family = AF_NETLINK,
-			.nl_pid = pid,
-			.nl_groups = 0,
-		};
-
-		nlmsg_set_dst(nl_msg, &nladdr);
+	if (!arg) {
+		return NL_STOP;
 	}
-	return msg;
+	ctxt->handler_err = 0;
+
+	if (!nlmsg) {
+		return NL_STOP;
+	}
+
+	if (!ctxt->handler) {
+		return NL_OK;
+	}
+
+	msg = match_nl_wrap_msg(nlmsg_hdr(nlmsg));
+	if (!msg) {
+		MAT_LOG(ERR, "Error: Could not allocate match msg\n");
+		return NL_SKIP;
+	}
+	type = ((struct nlmsghdr *)msg->msg)->nlmsg_type;
+
+	/*
+	 * Note the NLMSG_ERROR is overloaded
+	 * Its also used to deliver ACKs
+	 */
+	if (type == NLMSG_ERROR) {
+		struct nlmsgerr *errm = nlmsg_data(msg->msg);
+
+		if (errm->error) {
+			match_nl_handle_error(errm);
+			match_nl_free_msg(msg);
+			return NL_OK;
+		}
+
+		match_nl_free_msg(msg);
+		return NL_OK;
+	}
+
+	glm = nlmsg_data(msg->msg);
+	type = glm->cmd;
+
+	if (type < 0 || type > NET_MAT_CMD_MAX) {
+		MAT_LOG(ERR, "Received message of unknown type %d\n", type);
+		match_nl_free_msg(msg);
+		return NL_OK;
+	}
+
+	msg = match_nl_wrap_nl_msg(nlmsg);
+	if (!msg) {
+		MAT_LOG(ERR, "Error: Could not allocate match msg\n");
+		return NL_SKIP;
+	}
+	/*
+	 * We need to protect the nl_msg passed from libnl from double free
+	 * as handler calls match_nl_free_msg when it is done with the msg and
+	 * match_nl_free_msg calls nlmsg_free internally.
+	 * Libnl, however, expects to control the lifetime of nl_msg.
+	 * nlmsg_get increases the reference count.
+	 */
+	nlmsg_get(nlmsg);
+
+	err = ctxt->handler(msg, ctxt->handler_arg);
+	ctxt->handler_err = err;
+
+	return NL_OK;
 }
 
 
-typedef int (* match_nl_msg_composer_fn_t)(struct match_msg *msg, void *composer_arg);
-
-static struct match_msg *
-match_nl_get_msg_ext(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
-		     unsigned int ifindex, int family,
-		     match_nl_msg_composer_fn_t composer, void *composer_arg)
+static int
+match_nl_send_and_recv(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
+		       unsigned int ifindex, int family,
+		       match_nl_msg_composer_fn_t composer, void *composer_arg,
+		       match_nl_msg_handler_fn_t handler, void *handler_arg
+	)
 {
 	struct match_msg *msg;
 	sigset_t bs;
 	int err;
+	struct match_nl_recvmsg_msg_cb_adapter_ctxt adapter_ctxt;
+	int nlerr;
+
 
 	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
 	if (!msg) {
 		MAT_LOG(ERR, "Error: Allocation failure\n");
-		return NULL;
+		return -ENOMEM;
 	}
 
 	if (nla_put_u32(msg->nlbuf,
@@ -180,7 +307,7 @@ match_nl_get_msg_ext(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
 	    || nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
 		MAT_LOG(ERR, "Error: Identifier put failed\n");
 		match_nl_free_msg(msg);
-		return NULL;
+		return -EMSGSIZE;
 	}
 
 	if (composer) {
@@ -189,7 +316,7 @@ match_nl_get_msg_ext(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
 			MAT_LOG(ERR, "Error: Composing %d msg for ifindex %u failed\n",
 				cmd, ifindex);
 			match_nl_free_msg(msg);
-			return NULL;
+			return err;
 		}
 	}
 
@@ -201,125 +328,290 @@ match_nl_get_msg_ext(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
 	sigaddset(&bs, SIGINT);
 	sigprocmask(SIG_UNBLOCK, &bs, NULL);
 
-	msg = match_nl_recv_msg(nsd, &err);
+	adapter_ctxt.handler = handler;
+	adapter_ctxt.handler_arg = handler_arg;
+	adapter_ctxt.handler_err = 0;
+
+	nlerr = nl_socket_modify_cb(nsd, NL_CB_VALID, NL_CB_CUSTOM,
+				    match_nl_recvmsg_msg_cb_adapter, &adapter_ctxt);
+	if (NLE_SUCCESS != nlerr) {
+		MAT_LOG(ERR, "Error: nl_socket_modify_cb() failed(%d)\n", -nlerr);
+	}
+
+	nl_socket_disable_seq_check(nsd);
+	nlerr = nl_recvmsgs_default(nsd);
+	if (NLE_SUCCESS != nlerr) {
+		MAT_LOG(ERR, "Error: nl_recvmsgs_default() failed(%d)\n", -nlerr);
+	}
+
 	sigprocmask(SIG_BLOCK, &bs, NULL);
-	return msg;
+
+	return adapter_ctxt.handler_err;
 }
 
 
-struct match_msg *match_nl_get_msg(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
-				   unsigned int ifindex, int family)
+static int match_nl_table_cmd_to_type(struct mat_stream *matsp __unused,
+				      int valid, struct nlattr *tb[])
 {
-	return match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family, NULL, NULL);
+	unsigned int type;
+
+	if (!tb[NET_MAT_IDENTIFIER_TYPE]) {
+		MAT_LOG(ERR,
+			"Warning: received rule msg without identifier type!\n");
+		return -EINVAL;
+	}
+	if (!tb[NET_MAT_IDENTIFIER]) {
+		MAT_LOG(ERR,
+			"Warning: received rule msg without identifier!\n");
+		return -EINVAL;
+	}
+
+	if (valid > 0 && !tb[valid]) {
+		MAT_LOG(ERR, "Warning: received cmd without valid attribute expected %i\n", valid);
+		return -ENOMSG;
+	}
+
+	if (nla_len(tb[NET_MAT_IDENTIFIER_TYPE]) < (int)sizeof(type)) {
+		MAT_LOG(ERR, "Warning: invalid identifier type len\n");
+		return -EINVAL;
+	}
+
+	type = nla_get_u32(tb[NET_MAT_IDENTIFIER_TYPE]);
+
+	switch (type) {
+	case NET_MAT_IDENTIFIER_IFINDEX:
+		break;
+	default:
+		MAT_LOG(ERR, "Warning: unknown interface identifier type %i\n", type);
+		break;
+	}
+
+	return 0;
 }
 
+
+struct get_headers_handler_args {
+	struct net_mat_hdr *hdrs;
+};
+
+static int handle_get_headers(struct match_msg *msg, void *handler_arg)
+{
+	struct get_headers_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
+	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_hdr *hdrs = NULL;
+	int err;
+
+	if (!handler_arg)
+		return -EINVAL;
+
+	args->hdrs = NULL;
+
+	if (!msg)
+		return -EINVAL;
+
+	nlh = msg->msg;
+
+	err = genlmsg_parse(nlh, 0, tb,
+			    NET_MAT_MAX, match_get_tables_policy);
+	if (err < 0) {
+		MAT_LOG(ERR, "Warning: unable to parse get headers msg\n");
+		goto out;
+	}
+
+	if (match_nl_table_cmd_to_type(matsp,
+				       NET_MAT_HEADERS, tb))
+		goto out;
+
+	if (tb[NET_MAT_HEADERS])
+		match_get_headers(matsp,
+				  tb[NET_MAT_HEADERS], &hdrs);
+
+	args->hdrs = hdrs;
+out:
+	match_nl_free_msg(msg);
+	return 0;
+}
 
 struct net_mat_hdr *match_nl_get_headers(struct nl_sock *nsd, uint32_t pid,
 					 unsigned int ifindex, int family)
 {
 	uint8_t cmd = NET_MAT_TABLE_CMD_GET_HEADERS;
-	struct net_mat_hdr *hdrs = NULL;
-	struct match_msg *msg;
+	struct get_headers_handler_args args = {.hdrs = NULL};
+	int err;
 
-	msg = match_nl_get_msg(nsd, cmd, pid, ifindex, family);
 
-	if (msg) {
-		struct nlmsghdr *nlh = msg->msg;
-		struct nlattr *tb[NET_MAT_MAX+1];
-		int err;
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     /*composer*/ NULL, NULL,
+				     handle_get_headers, &args);
+	/* TODO handle error propagated from handler */
+	(void)err;
 
-		err = genlmsg_parse(nlh, 0, tb,
-				    NET_MAT_MAX, match_get_tables_policy);
-		if (err < 0) {
-			MAT_LOG(ERR, "Warning: unable to parse get headers msg\n");
-			goto out;
-		}
+	return args.hdrs;
+}
 
-		if (match_nl_table_cmd_to_type(matsp,
-					      NET_MAT_HEADERS, tb))
-			goto out;
 
-		if (tb[NET_MAT_HEADERS])
-			match_get_headers(matsp,
-					 tb[NET_MAT_HEADERS], &hdrs);
+struct get_actions_handler_args {
+	struct net_mat_action *actions;
+};
+
+static int handle_get_actions(struct match_msg *msg, void *handler_arg)
+{
+	struct get_actions_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh = msg->msg;
+	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_action *actions = NULL;
+	int err;
+
+
+	if (!handler_arg)
+		return -EINVAL;
+
+	args->actions = NULL;
+
+	if (!msg)
+		return -EINVAL;
+
+	nlh = msg->msg;
+	err = genlmsg_parse(nlh, 0, tb,
+			    NET_MAT_MAX, match_get_tables_policy);
+	if (err < 0) {
+		MAT_LOG(ERR, "Warning: unable to parse get actions msg\n");
+		goto out;
 	}
-	match_nl_free_msg(msg);
-	return hdrs;
+
+	if (match_nl_table_cmd_to_type(matsp,
+				       NET_MAT_ACTIONS, tb))
+		goto out;
+
+	if (tb[NET_MAT_ACTIONS])
+		match_get_actions(matsp,
+				  tb[NET_MAT_ACTIONS], &actions);
+	args->actions = actions;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
 }
 
 struct net_mat_action *match_nl_get_actions(struct nl_sock *nsd, uint32_t pid,
 					    unsigned int ifindex, int family)
 {
 	uint8_t cmd = NET_MAT_TABLE_CMD_GET_ACTIONS;
-	struct net_mat_action *actions = NULL;
-	struct match_msg *msg;
+	struct get_actions_handler_args args = {.actions = NULL};
+	int err;
 
-	msg = match_nl_get_msg(nsd, cmd, pid, ifindex, family);
 
-	if (msg) {
-		struct nlmsghdr *nlh = msg->msg;
-		struct nlattr *tb[NET_MAT_MAX+1];
-		int err;
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     /*composer*/ NULL, NULL,
+				     handle_get_actions, &args);
+	/* TODO handle error propagated from handler */
+	(void)err;
 
-		err = genlmsg_parse(nlh, 0, tb,
-				    NET_MAT_MAX, match_get_tables_policy);
-		if (err < 0) {
-			MAT_LOG(ERR, "Warning: unable to parse get actions msg\n");
-			goto out;
-		}
+	return args.actions;
+}
 
-		if (match_nl_table_cmd_to_type(matsp,
-					      NET_MAT_ACTIONS, tb))
-			goto out;
 
-		if (tb[NET_MAT_ACTIONS])
-			match_get_actions(matsp,
-					 tb[NET_MAT_ACTIONS], &actions);
+struct get_tables_handler_args {
+	struct net_mat_tbl *tables;
+};
+
+static int handle_get_tables(struct match_msg *msg, void *handler_arg)
+{
+	struct get_tables_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
+	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_tbl *tables = NULL;
+	int err;
+
+	if (!handler_arg)
+		return -EINVAL;
+
+	args->tables = NULL;
+
+	if (!msg)
+		return -EINVAL;
+
+	nlh = msg->msg;
+
+	err = genlmsg_parse(nlh, 0, tb,
+			    NET_MAT_MAX, match_get_tables_policy);
+	if (err < 0) {
+		MAT_LOG(ERR, "Warning: unable to parse get tables msg\n");
+		goto out;
 	}
-	match_nl_free_msg(msg);
-	return actions;
+
+	if (match_nl_table_cmd_to_type(matsp,
+				       NET_MAT_TABLES, tb))
+		goto out;
+
+	if (tb[NET_MAT_TABLES])
+		match_get_tables(matsp,
+				 tb[NET_MAT_TABLES], &tables);
+	args->tables = tables;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
 }
 
 struct net_mat_tbl *match_nl_get_tables(struct nl_sock *nsd, uint32_t pid,
 					unsigned int ifindex, int family)
 {
 	uint8_t cmd = NET_MAT_TABLE_CMD_GET_TABLES;
-	struct net_mat_tbl *tables = NULL;
-	struct match_msg *msg;
+	struct get_tables_handler_args args = {.tables = NULL};
+	int err;
 
-	msg = match_nl_get_msg(nsd, cmd, pid, ifindex, family);
 
-	if (msg) {
-		struct nlattr *tb[NET_MAT_MAX+1];
-		struct nlmsghdr *nlh = msg->msg;
-		int err;
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     /*composer*/ NULL, NULL,
+				     handle_get_tables, &args);
+	/* TODO handle error propagated from handler */
+	(void)err;
 
-		err = genlmsg_parse(nlh, 0, tb,
-				    NET_MAT_MAX, match_get_tables_policy);
-		if (err < 0) {
-			MAT_LOG(ERR, "Warning: unable to parse get tables msg\n");
-			goto out;
-		}
+	return args.tables;
+}
 
-		if (match_nl_table_cmd_to_type(matsp,
-					      NET_MAT_TABLES, tb))
-			goto out;
 
-		if (tb[NET_MAT_TABLES])
-			match_get_tables(matsp,
-					tb[NET_MAT_TABLES], &tables);
+struct get_hdr_graph_handler_args {
+	struct net_mat_hdr_node *hdr_nodes;
+};
+
+static int handle_get_hdr_graph(struct match_msg *msg, void *handler_arg)
+{
+	struct get_hdr_graph_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
+	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_hdr_node *hdr_nodes = NULL;
+	int err;
+
+	if (!handler_arg)
+		return -EINVAL;
+
+	args->hdr_nodes = NULL;
+
+	if (!msg)
+		return -EINVAL;
+
+	nlh = msg->msg;
+
+	err = genlmsg_parse(nlh, 0, tb,
+			    NET_MAT_MAX, match_get_tables_policy);
+	if (err < 0) {
+		MAT_LOG(ERR, "Warning: unable to parse get header graph msg\n");
+		goto out;
 	}
-	match_nl_free_msg(msg);
-	return tables;
+
+	if (match_nl_table_cmd_to_type(matsp,
+				       NET_MAT_HEADER_GRAPH, tb))
+		goto out;
+
+	if (tb[NET_MAT_HEADER_GRAPH])
+		match_get_hdrs_graph(matsp, verbose,
+				     tb[NET_MAT_HEADER_GRAPH],
+				     &hdr_nodes);
+	args->hdr_nodes = hdr_nodes;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
 }
 
 struct net_mat_hdr_node *match_nl_get_hdr_graph(struct nl_sock *nsd,
@@ -328,37 +620,60 @@ struct net_mat_hdr_node *match_nl_get_hdr_graph(struct nl_sock *nsd,
 						int family)
 {
 	uint8_t cmd = NET_MAT_TABLE_CMD_GET_HDR_GRAPH;
-	struct net_mat_hdr_node *hdr_nodes = NULL;
-	struct match_msg *msg;
+	struct get_hdr_graph_handler_args args = {.hdr_nodes = NULL};
+	int err;
 
-	msg = match_nl_get_msg(nsd, cmd, pid, ifindex, family);
 
-	if (msg) {
-		struct nlmsghdr *nlh = msg->msg;
-		struct nlattr *tb[NET_MAT_MAX+1];
-		int err;
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     /*composer*/ NULL, NULL,
+				     handle_get_hdr_graph, &args);
+	/* TODO handle error propagated from handler */
+	(void)err;
 
-		err = genlmsg_parse(nlh, 0, tb,
-				    NET_MAT_MAX, match_get_tables_policy);
-		if (err < 0) {
-			MAT_LOG(ERR, "Warning: unable to parse get header graph msg\n");
-			goto out;
-		}
+	return args.hdr_nodes;
+}
 
-		if (match_nl_table_cmd_to_type(matsp,
-					      NET_MAT_HEADER_GRAPH, tb))
-			goto out;
 
-		if (tb[NET_MAT_HEADER_GRAPH])
-			match_get_hdrs_graph(matsp, verbose,
-					    tb[NET_MAT_HEADER_GRAPH],
-					    &hdr_nodes);
+struct get_tbl_graph_handler_args {
+	struct net_mat_tbl_node *tbl_nodes;
+};
+
+static int handle_get_tbl_graph(struct match_msg *msg, void *handler_arg)
+{
+	struct get_tbl_graph_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
+	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_tbl_node *tbl_nodes = NULL;
+	int err;
+
+	if (!handler_arg)
+		return -EINVAL;
+
+	args->tbl_nodes = NULL;
+
+	if (!msg)
+		return -EINVAL;
+
+	nlh = msg->msg;
+
+	err = genlmsg_parse(nlh, 0, tb,
+			    NET_MAT_MAX, match_get_tables_policy);
+	if (err < 0) {
+		MAT_LOG(ERR, "Warning: unable to parse get table graph msg\n");
+		goto out;
 	}
-	match_nl_free_msg(msg);
-	return hdr_nodes;
+
+	if (match_nl_table_cmd_to_type(matsp,
+				       NET_MAT_TABLE_GRAPH, tb))
+		goto out;
+
+	if (tb[NET_MAT_TABLE_GRAPH])
+		match_get_tbl_graph(matsp, verbose,
+				    tb[NET_MAT_TABLE_GRAPH], &tbl_nodes);
+	args->tbl_nodes = tbl_nodes;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
 }
 
 struct net_mat_tbl_node *match_nl_get_tbl_graph(struct nl_sock *nsd,
@@ -367,37 +682,19 @@ struct net_mat_tbl_node *match_nl_get_tbl_graph(struct nl_sock *nsd,
 						int family)
 {
 	uint8_t cmd = NET_MAT_TABLE_CMD_GET_TABLE_GRAPH;
-	struct net_mat_tbl_node *nodes = NULL;
-	struct match_msg *msg;
+	struct get_tbl_graph_handler_args args = {.tbl_nodes = NULL};
+	int err;
 
-	msg = match_nl_get_msg(nsd, cmd, pid, ifindex, family);
 
-	if (msg) {
-		struct nlmsghdr *nlh = msg->msg;
-		struct nlattr *tb[NET_MAT_MAX+1];
-		int err;
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     /*composer*/ NULL, NULL,
+				     handle_get_tbl_graph, &args);
+	/* TODO handle error propagated from handler */
+	(void)err;
 
-		err = genlmsg_parse(nlh, 0, tb,
-				    NET_MAT_MAX, match_get_tables_policy);
-		if (err < 0) {
-			MAT_LOG(ERR, "Warning: unable to parse get table graph msg\n");
-			goto out;
-		}
-
-		if (match_nl_table_cmd_to_type(matsp,
-					      NET_MAT_TABLE_GRAPH, tb))
-			goto out;
-
-		if (tb[NET_MAT_TABLE_GRAPH])
-			match_get_tbl_graph(matsp, verbose,
-					   tb[NET_MAT_TABLE_GRAPH], &nodes);
-	}
-	match_nl_free_msg(msg);
-	return nodes;
-out:
-	match_nl_free_msg(msg);
-	return NULL;
+	return args.tbl_nodes;
 }
+
 
 static int compose_set_del_rules(struct match_msg *msg, void *arg)
 {
@@ -421,19 +718,13 @@ static int compose_set_del_rules(struct match_msg *msg, void *arg)
 	return 0;
 }
 
-int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
-			   unsigned int ifindex, int family,
-			   struct net_mat_rule *rule, uint8_t cmd)
+static int handle_set_del_rules(struct match_msg *msg, void *handler_arg __unused)
 {
-	struct nlattr *tb[NET_MAT_MAX+1];
-	struct match_msg *msg;
 	struct nlmsghdr *nlh;
+	struct nlattr *tb[NET_MAT_MAX+1];
 	int err = 0;
 
-	pp_rule(matsp, rule);
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_set_del_rules, rule);
 	if (!msg)
 		return -EINVAL;
 
@@ -459,6 +750,20 @@ int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
 	}
 	match_nl_free_msg(msg);
 	return 0;
+}
+
+int match_nl_set_del_rules(struct nl_sock *nsd, uint32_t pid,
+			   unsigned int ifindex, int family,
+			   struct net_mat_rule *rule, uint8_t cmd)
+{
+	int err = 0;
+
+	pp_rule(matsp, rule);
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_set_del_rules, rule,
+				     handle_set_del_rules, NULL);
+	return err;
 }
 
 
@@ -513,27 +818,25 @@ static int compose_get_rules(struct match_msg *msg, void *composer_arg)
 	return 0;
 }
 
+struct get_rules_handler_args {
+	struct net_mat_rule *rules;
+};
 
-struct net_mat_rule *match_nl_get_rules(struct nl_sock *nsd, uint32_t pid,
-					unsigned int ifindex, int family,
-					uint32_t tableid, uint32_t min, uint32_t max)
+static int handle_get_rules(struct match_msg *msg, void *handler_arg)
 {
-	uint8_t cmd = NET_MAT_TABLE_CMD_GET_RULES;
+	struct get_rules_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
 	struct nlattr *tb[NET_MAT_MAX+1];
 	struct net_mat_rule *rule = NULL;
-	struct match_msg *msg;
-	struct nlmsghdr *nlh;
 	int err = 0;
-	struct get_rules_args args;
 
-	args.tableid = tableid;
-	args.min = min;
-	args.max = max;
+	if (!handler_arg)
+		return -EINVAL;
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_get_rules, &args);
+	args->rules = NULL;
+
 	if (!msg)
-		return NULL;
+		return -EINVAL;
 
 	nlh = msg->msg;
 	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
@@ -551,11 +854,32 @@ struct net_mat_rule *match_nl_get_rules(struct nl_sock *nsd, uint32_t pid,
 		if (err)
 			goto out;
 	}
-	match_nl_free_msg(msg);
-	return rule;
+	args->rules = rule;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
+}
+
+struct net_mat_rule *match_nl_get_rules(struct nl_sock *nsd, uint32_t pid,
+					unsigned int ifindex, int family,
+					uint32_t tableid, uint32_t min, uint32_t max)
+{
+	int err = 0;
+	uint8_t cmd = NET_MAT_TABLE_CMD_GET_RULES;
+	struct get_rules_args args;
+	struct get_rules_handler_args handler_args = {.rules = NULL};
+
+	args.tableid = tableid;
+	args.min = min;
+	args.max = max;
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_get_rules, &args,
+				     handle_get_rules, &handler_args);
+	/* TODO handle error propagated from handler */
+	(void)err;
+
+	return handler_args.rules;
 }
 
 
@@ -576,19 +900,13 @@ static int compose_set_port(struct match_msg *msg, void *arg)
 	return 0;
 }
 
-int match_nl_set_port(struct nl_sock *nsd, uint32_t pid,
-		      unsigned int ifindex, int family,
-		      struct net_mat_port *port)
+static int handle_set_port(struct match_msg *msg, void *handler_arg __unused)
 {
-	uint8_t cmd = NET_MAT_PORT_CMD_SET_PORTS;
 	struct nlattr *tb[NET_MAT_MAX+1];
-	struct match_msg *msg;
 	struct nlmsghdr *nlh;
 	int err = 0;
 
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_set_port, port);
 	if (!msg)
 		return -EINVAL;
 
@@ -614,6 +932,20 @@ int match_nl_set_port(struct nl_sock *nsd, uint32_t pid,
 	}
 	match_nl_free_msg(msg);
 	return 0;
+}
+
+int match_nl_set_port(struct nl_sock *nsd, uint32_t pid,
+		      unsigned int ifindex, int family,
+		      struct net_mat_port *port)
+{
+	uint8_t cmd = NET_MAT_PORT_CMD_SET_PORTS;
+	int err = 0;
+
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_set_port, port,
+				     handle_set_port, NULL);
+	return err;
 }
 
 
@@ -657,25 +989,25 @@ static int compose_get_ports(struct match_msg *msg, void *composer_arg)
 	return 0;
 }
 
-struct net_mat_port *match_nl_get_ports(struct nl_sock *nsd, uint32_t pid,
-					unsigned int ifindex, int family,
-					uint32_t min, uint32_t max)
+struct get_ports_handler_args {
+	struct net_mat_port *ports;
+};
+
+static int handle_get_ports(struct match_msg *msg, void *handler_arg)
 {
-	uint8_t cmd = NET_MAT_PORT_CMD_GET_PORTS;
+	struct get_ports_handler_args *args = handler_arg;
+	struct nlmsghdr *nlh;
 	struct nlattr *tb[NET_MAT_MAX+1];
 	struct net_mat_port *port = NULL;
-	struct match_msg *msg;
-	struct nlmsghdr *nlh;
 	int err = 0;
-	struct get_ports_args args;
 
-	args.min = min;
-	args.max = max;
+	if (!handler_arg)
+		return -EINVAL;
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_get_ports, &args);
+	args->ports = NULL;
+
 	if (!msg)
-		return NULL;
+		return -EINVAL;
 
 	nlh = msg->msg;
 	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
@@ -693,11 +1025,31 @@ struct net_mat_port *match_nl_get_ports(struct nl_sock *nsd, uint32_t pid,
 		if (err)
 			goto out;
 	}
-	match_nl_free_msg(msg);
-	return port;
+	args->ports = port;
 out:
 	match_nl_free_msg(msg);
-	return NULL;
+	return 0;
+}
+
+struct net_mat_port *match_nl_get_ports(struct nl_sock *nsd, uint32_t pid,
+					unsigned int ifindex, int family,
+					uint32_t min, uint32_t max)
+{
+	int err = 0;
+	uint8_t cmd = NET_MAT_PORT_CMD_GET_PORTS;
+	struct get_ports_args args;
+	struct get_ports_handler_args handler_args = {.ports = NULL};
+
+	args.min = min;
+	args.max = max;
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_get_ports, &args,
+				     handle_get_ports, &handler_args);
+	/* TODO handle error propagated from handler */
+	(void)err;
+
+	return handler_args.ports;
 }
 
 
@@ -718,18 +1070,13 @@ static int compose_create_update_destroy_table(struct match_msg *msg, void *arg)
 	return 0;
 }
 
-int match_nl_create_update_destroy_table(struct nl_sock *nsd, uint32_t pid,
-					 unsigned int ifindex, int family,
-					 struct net_mat_tbl *table, uint8_t cmd)
+static int handle_create_update_destroy_table(struct match_msg *msg, void *handler_arg __unused)
 {
-	struct nlattr *tb[NET_MAT_MAX+1];
 	struct nlmsghdr *nlh;
-	struct match_msg *msg;
+	struct nlattr *tb[NET_MAT_MAX+1];
 	int err = 0;
 
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_create_update_destroy_table, table);
 	if (!msg)
 		return -EINVAL;
 
@@ -743,6 +1090,20 @@ int match_nl_create_update_destroy_table(struct nl_sock *nsd, uint32_t pid,
 	match_nl_free_msg(msg);
 	return 0;
 }
+
+int match_nl_create_update_destroy_table(struct nl_sock *nsd, uint32_t pid,
+					 unsigned int ifindex, int family,
+					 struct net_mat_tbl *table, uint8_t cmd)
+{
+	int err = 0;
+
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_create_update_destroy_table, table,
+				     handle_create_update_destroy_table, NULL);
+	return err;
+}
+
 
 uint32_t match_nl_find_header(struct net_mat_hdr *hdr,
 			     struct net_mat_hdr *search)
@@ -814,124 +1175,6 @@ uint32_t match_nl_find_table_with_action(struct net_mat_tbl *tbls,
 	return 0;
 }
 
-struct match_msg *match_nl_wrap_msg(struct nlmsghdr *buf)
-{
-	struct match_msg *msg;
-
-	msg = (struct match_msg *) malloc(sizeof(struct match_msg));
-	if (msg) {
-		msg->msg = buf;
-		msg->nlbuf = NULL;
-	}
-
-	return msg;
-}
-
-static void match_nl_handle_error(struct nlmsgerr *errmsg)
-{
-	MAT_LOG(ERR, "Error processing request: %s\n",
-		strerror(errmsg->error));
-}
-
-struct match_msg *match_nl_recv_msg(struct nl_sock *nsd, int *err)
-{
-	static unsigned char *buf;
-	struct match_msg *msg;
-	struct genlmsghdr *glm;
-	struct sockaddr_nl nla;
-	int type;
-	int rc;
-
-	*err = 0;
-
-	do {
-		rc = nl_recv(nsd, &nla, &buf, NULL);
-		if (rc < 0) {
-			switch (errno) {
-			case EINTR:
-				return NULL;
-			default:
-				perror("Receive operation failed:");
-				return NULL;
-			}
-		}
-	} while (rc == 0);
-
-	msg = match_nl_wrap_msg((struct nlmsghdr *)buf);
-	if (!msg) {
-		MAT_LOG(ERR, "Error: Message is empty\n");
-		free(buf);
-		return NULL;
-	}
-	type = ((struct nlmsghdr *)msg->msg)->nlmsg_type;
-
-	/*
-	 * Note the NLMSG_ERROR is overloaded
-	 * Its also used to deliver ACKs
-	 */
-	if (type == NLMSG_ERROR) {
-		struct nlmsgerr *errm = nlmsg_data(msg->msg);
-
-		if (errm->error) {
-			match_nl_handle_error(errm);
-			match_nl_free_msg(msg);
-			return NULL;
-		}
-
-		match_nl_free_msg(msg);
-		return NULL;
-	}
-
-	glm = nlmsg_data(msg->msg);
-	type = glm->cmd;
-
-	if (type < 0 || type > NET_MAT_CMD_MAX) {
-		MAT_LOG(ERR, "Received message of unknown type %d\n", type);
-		match_nl_free_msg(msg);
-		return NULL;
-	}
-
-	return msg;
-}
-
-int match_nl_table_cmd_to_type(struct mat_stream *matsp __unused,
-                               int valid, struct nlattr *tb[])
-{
-	unsigned int type;
-
-	if (!tb[NET_MAT_IDENTIFIER_TYPE]) {
-		MAT_LOG(ERR,
-			"Warning: received rule msg without identifier type!\n");
-		return -EINVAL;
-	}
-	if (!tb[NET_MAT_IDENTIFIER]) {
-		MAT_LOG(ERR,
-			"Warning: received rule msg without identifier!\n");
-		return -EINVAL;
-	}
-
-	if (valid > 0 && !tb[valid]) {
-		MAT_LOG(ERR, "Warning: received cmd without valid attribute expected %i\n", valid);
-		return -ENOMSG;
-	}
-
-	if (nla_len(tb[NET_MAT_IDENTIFIER_TYPE]) < (int)sizeof(type)) {
-		MAT_LOG(ERR, "Warning: invalid identifier type len\n");
-		return -EINVAL;
-	}
-
-	type = nla_get_u32(tb[NET_MAT_IDENTIFIER_TYPE]);
-
-	switch (type) {
-	case NET_MAT_IDENTIFIER_IFINDEX:
-		break;
-	default:
-		MAT_LOG(ERR, "Warning: unknown interface identifier type %i\n", type);
-		break;
-	}
-
-	return 0;
-}
 
 
 
@@ -948,25 +1191,35 @@ static int compose_get_port(struct match_msg *msg, void *arg)
 	return 0;
 }
 
-static int match_nl_get_port(struct nl_sock *nsd, uint32_t pid,
-			     unsigned int ifindex, int family, uint8_t cmd,
-			     struct net_mat_port *ports,
-			     uint32_t *port_id, uint32_t *glort)
+
+struct get_port_handler_args {
+	uint8_t cmd;
+	uint32_t port_id;
+	uint32_t glort;
+};
+
+static int handle_get_port(struct match_msg *msg, void *handler_arg)
 {
-	struct net_mat_port *port_query = NULL;
-	struct match_msg *msg;
+	struct get_port_handler_args *args = handler_arg;
 	struct nlmsghdr *nlh;
 	struct nlattr *tb[NET_MAT_MAX+1];
+	struct net_mat_port *port_query = NULL;
+	uint8_t cmd;
+	uint32_t *port_id;
+	uint32_t *glort;
 	int err;
 
 
-	msg = match_nl_get_msg_ext(nsd, cmd, pid, ifindex, family,
-				   compose_get_port, ports);
+	if (!handler_arg)
+		return -EINVAL;
+	cmd = args->cmd;
+	port_id = &args->port_id;
+	glort = &args->glort;
+
 	if (!msg)
 		return -EINVAL;
 
 	nlh = msg->msg;
-
 	err = genlmsg_parse(nlh, 0, tb,
 			    NET_MAT_MAX, match_get_tables_policy);
 	if (err < 0) {
@@ -1005,6 +1258,30 @@ static int match_nl_get_port(struct nl_sock *nsd, uint32_t pid,
 	match_nl_free_msg(msg);
 	free(port_query);
 	return 0;
+}
+
+static int match_nl_get_port(struct nl_sock *nsd, uint32_t pid,
+			     unsigned int ifindex, int family, uint8_t cmd,
+			     struct net_mat_port *ports,
+			     uint32_t *port_id, uint32_t *glort)
+{
+	int err = 0;
+	struct get_port_handler_args handler_args = {.cmd = cmd};
+
+
+	err = match_nl_send_and_recv(nsd, cmd, pid, ifindex, family,
+				     compose_get_port, ports,
+				     handle_get_port, &handler_args);
+	if (!err) {
+		if ((cmd == NET_MAT_PORT_CMD_GET_LPORT)
+		    || (cmd == NET_MAT_PORT_CMD_GET_PHYS_PORT))
+			*port_id = handler_args.port_id;
+
+		if (glort)
+			*glort = handler_args.glort;
+	}
+
+	return err;
 }
 
 int match_nl_pci_lport(struct nl_sock *nsd, uint32_t pid,
