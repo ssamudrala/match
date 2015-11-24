@@ -1942,3 +1942,49 @@ int matchd_init(struct nl_sock *sock, int family_id,
 
 	return rc;
 }
+
+
+static int matchd_nl_valid_callback(struct nl_msg *msg,
+				    __attribute__((__unused__)) void *arg)
+{
+	struct nlmsghdr *hdr = nlmsg_hdr(msg);
+	int err;
+
+
+	err = matchd_rx_process(hdr);
+	if (err < 0) {
+		MAT_LOG(ERR, "matchd_rx_process failed\n");
+		return NL_OK;
+	}
+	/* TODO: should all error cases send a response? */
+	return NL_OK;
+}
+
+int matchd_receive_loop(struct nl_sock *sock)
+{
+	int nlerr;
+
+
+	nlerr = nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM,
+				    matchd_nl_valid_callback, NULL);
+	if (nlerr < 0) {
+		MAT_LOG(ERR, "nl_socket_modify_cb() failed: %s\n",
+			nl_geterror(nlerr));
+		return -ERANGE;
+	}
+
+	nl_socket_disable_auto_ack(sock);
+	nl_socket_disable_seq_check(sock);
+
+	while (1) {
+		nlerr = nl_recvmsgs_default(sock);
+		if (nlerr < 0) {
+			MAT_LOG(ERR, "nl_recvmsgs_default() failed: %s\n",
+				nl_geterror(nlerr));
+			return -ECOMM;
+		}
+	}
+
+	/* Unreachable */
+	return 0;
+}

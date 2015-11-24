@@ -35,4 +35,6 @@ int matchd_init(struct nl_sock *sock, int family_id, const char *backend_name,
 int matchd_uninit(void);
 int matchd_rx_process(struct nlmsghdr *nlh);
 
+int matchd_receive_loop(struct nl_sock *sock);
+
 #endif /* __MATCHD_LIB_H__ */
