@@ -443,8 +443,20 @@ static int ies_pipeline_update_table(struct net_mat_tbl *tbl)
 	if (!tbl->attribs)
 		return -EINVAL;
 
-	smac = values_tunnel_engine[IES_VXLAN_SRC_MAC].value.u64;
-	dmac = values_tunnel_engine[IES_VXLAN_DST_MAC].value.u64;
+	switch (tbl->uid) {
+	case TABLE_TUNNEL_ENGINE_A:
+		te = 0;
+		break;
+	case TABLE_TUNNEL_ENGINE_B:
+		te = 1;
+		break;
+	default:
+		MAT_LOG(ERR, "ERROR: Table %i, does not support updates\n", tbl->uid);
+		return -EINVAL;
+	}
+
+	smac = values_tunnel_engine[te][IES_VXLAN_SRC_MAC].value.u64;
+	dmac = values_tunnel_engine[te][IES_VXLAN_DST_MAC].value.u64;
 
 	for (i = 0; tbl->attribs[i].uid; i++) {
 		switch (tbl->attribs[i].uid) {
@@ -463,17 +475,6 @@ static int ies_pipeline_update_table(struct net_mat_tbl *tbl)
 		}
 	}
 
-	switch (tbl->uid) {
-	case TABLE_TUNNEL_ENGINE_A:
-		te = 0;
-		break;
-	case TABLE_TUNNEL_ENGINE_B:
-		te = 1;
-		break;
-	default:
-		MAT_LOG(ERR, "ERROR: Table %i, does not support updates\n", tbl->uid);
-		return -EINVAL;
-	}
 
 	err =  switch_tunnel_engine_set_default_smac(te, smac);
 	if (err) {
@@ -487,8 +488,8 @@ static int ies_pipeline_update_table(struct net_mat_tbl *tbl)
 		return err;
 	}
 
-	values_tunnel_engine[IES_VXLAN_SRC_MAC].value.u64 = smac;
-	values_tunnel_engine[IES_VXLAN_DST_MAC].value.u64 = dmac;
+	values_tunnel_engine[te][IES_VXLAN_SRC_MAC].value.u64 = smac;
+	values_tunnel_engine[te][IES_VXLAN_DST_MAC].value.u64 = dmac;
 
 	if (!have_dflt_port)
 		return err;
@@ -507,7 +508,7 @@ static int ies_pipeline_update_table(struct net_mat_tbl *tbl)
 		return err;
 	}
 
-	values_tunnel_engine[IES_VXLAN_MISS_DFLT_PORT].value.u16 = dflt_port;
+	values_tunnel_engine[te][IES_VXLAN_MISS_DFLT_PORT].value.u16 = dflt_port;
 
 	return err;
 }
