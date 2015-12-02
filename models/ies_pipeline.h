@@ -1385,33 +1385,50 @@ static struct net_mat_tbl my_table_tcam = {
 #define IES_VXLAN_DST_MAC 3
 #define IES_VXLAN_MISS_DFLT_PORT 4
 
-static struct net_mat_named_value values_tunnel_engine[] = {
-	{ .name = vxlan_src_port_str,
-	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_SRC_PORT,
-	  .type = NET_MAT_NAMED_VALUE_TYPE_U32,
-	  .value.u32 = IES_VXLAN_PORT,
-	  .write = 0},
-	{ .name = vxlan_dst_port_str,
-	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_DST_PORT,
-	  .type = NET_MAT_NAMED_VALUE_TYPE_U32,
-	  .value.u32 = IES_VXLAN_PORT,
-	  .write = 0},
-	{ .name = vxlan_src_mac_str,
-	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_SRC_MAC,
-	  .type = NET_MAT_NAMED_VALUE_TYPE_U64,
-	  .value.u64 = IES_ROUTER_MAC,
-	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},
-	{ .name = vxlan_dst_mac_str,
-	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_DST_MAC,
-	  .type = NET_MAT_NAMED_VALUE_TYPE_U64,
-	  .value.u64 = IES_ROUTER_MAC,
-	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},
-	{ .name = te_miss_dflt_port_str,
-	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_MISS_DFLT_EGRESS_PORT,
-	  .type = NET_MAT_NAMED_VALUE_TYPE_U16,
-	  .value.u16 = 0,
-	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},
+#define IES_TABLE_TUNNEL_NAMED_VALUE_DEFAULT_INITIALIZER		\
+	{ .name = vxlan_src_port_str,					\
+	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_SRC_PORT,		\
+          .type = NET_MAT_NAMED_VALUE_TYPE_U32,				\
+	  .value.u32 = IES_VXLAN_PORT,					\
+	  .write = 0},							\
+	{ .name = vxlan_dst_port_str,					\
+	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_DST_PORT,		\
+	  .type = NET_MAT_NAMED_VALUE_TYPE_U32,				\
+	  .value.u32 = IES_VXLAN_PORT,					\
+	  .write = 0},							\
+	[IES_VXLAN_SRC_MAC] =						\
+	{ .name = vxlan_src_mac_str,					\
+	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_SRC_MAC,		\
+	  .type = NET_MAT_NAMED_VALUE_TYPE_U64,				\
+	  .value.u64 = IES_ROUTER_MAC,					\
+	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},			\
+	[IES_VXLAN_DST_MAC] =						\
+	{ .name = vxlan_dst_mac_str,					\
+	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_VXLAN_DST_MAC,		\
+	  .type = NET_MAT_NAMED_VALUE_TYPE_U64,				\
+	  .value.u64 = IES_ROUTER_MAC,					\
+	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},			\
+	[IES_VXLAN_MISS_DFLT_PORT] =					\
+	{ .name = te_miss_dflt_port_str,				\
+	  .uid = NET_MAT_TABLE_ATTR_NAMED_VALUE_MISS_DFLT_EGRESS_PORT,	\
+	  .type = NET_MAT_NAMED_VALUE_TYPE_U16,				\
+	  .value.u16 = 0,						\
+	  .write = NET_MAT_NAMED_VALUE_IS_WRITABLE},			\
 	{ .name = NULL, .uid = 0 },
+
+
+static struct net_mat_named_value values_tunnel_engine_a[] = {
+	IES_TABLE_TUNNEL_NAMED_VALUE_DEFAULT_INITIALIZER
+};
+
+static struct net_mat_named_value values_tunnel_engine_b[] = {
+	IES_TABLE_TUNNEL_NAMED_VALUE_DEFAULT_INITIALIZER
+};
+
+
+static struct net_mat_named_value * const values_tunnel_engine[] = {
+	values_tunnel_engine_a,
+	values_tunnel_engine_b,
 };
 
 static struct net_mat_tbl my_table_tunnel_a = {
@@ -1422,10 +1439,10 @@ static struct net_mat_tbl my_table_tunnel_a = {
 	.size = TABLE_TUNNEL_ENDPOINT_SIZE,
 	.matches = matches_tunnel_engine,
 	.actions = actions_tunnel_engine,
-	.attribs = values_tunnel_engine,
+	.attribs = values_tunnel_engine_a,
 };
 
-static struct net_mat_tbl my_table_tunnel_b= {
+static struct net_mat_tbl my_table_tunnel_b = {
 	.name = tunnel_engine_b,
 	.uid = TABLE_TUNNEL_ENGINE_B,
 	.source = TABLE_TUNNEL_ENGINE_B,
@@ -1433,7 +1450,7 @@ static struct net_mat_tbl my_table_tunnel_b= {
 	.size = TABLE_TUNNEL_ENDPOINT_SIZE,
 	.matches = matches_tunnel_engine,
 	.actions = actions_tunnel_engine,
-	.attribs = values_tunnel_engine,
+	.attribs = values_tunnel_engine_b,
 };
 
 #ifdef PORT_TO_VNI

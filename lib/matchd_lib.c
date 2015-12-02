@@ -1855,22 +1855,22 @@ done:
 }
 
 static int(*type_cb[NET_MAT_CMD_MAX+1])(struct nlmsghdr *nlh) = {
-	match_cmd_get_tables,
-	match_cmd_get_headers,
-	match_cmd_get_actions,
-	match_cmd_get_header_graph,
-	match_cmd_get_table_graph,
-	match_cmd_get_rules,
-	match_cmd_rules,
-	match_cmd_rules,
-	match_cmd_update_rules,
-	match_cmd_table,
-	match_cmd_table,
-	match_cmd_table,
-	match_cmd_get_ports,
-	match_cmd_get_lport,
-	match_cmd_get_phys_port,
-	match_cmd_set_ports,
+	[NET_MAT_TABLE_CMD_GET_TABLES]	    = match_cmd_get_tables,
+	[NET_MAT_TABLE_CMD_GET_HEADERS]	    = match_cmd_get_headers,
+	[NET_MAT_TABLE_CMD_GET_ACTIONS]	    = match_cmd_get_actions,
+	[NET_MAT_TABLE_CMD_GET_HDR_GRAPH]   = match_cmd_get_header_graph,
+	[NET_MAT_TABLE_CMD_GET_TABLE_GRAPH] = match_cmd_get_table_graph,
+	[NET_MAT_TABLE_CMD_GET_RULES]	    = match_cmd_get_rules,
+	[NET_MAT_TABLE_CMD_SET_RULES]	    = match_cmd_rules,
+	[NET_MAT_TABLE_CMD_DEL_RULES]	    = match_cmd_rules,
+	[NET_MAT_TABLE_CMD_UPDATE_RULES]    = match_cmd_update_rules,
+	[NET_MAT_TABLE_CMD_CREATE_TABLE]    = match_cmd_table,
+	[NET_MAT_TABLE_CMD_DESTROY_TABLE]   = match_cmd_table,
+	[NET_MAT_TABLE_CMD_UPDATE_TABLE]    = match_cmd_table,
+	[NET_MAT_PORT_CMD_GET_PORTS]	    = match_cmd_get_ports,
+	[NET_MAT_PORT_CMD_GET_LPORT]	    = match_cmd_get_lport,
+	[NET_MAT_PORT_CMD_GET_PHYS_PORT]    = match_cmd_get_phys_port,
+	[NET_MAT_PORT_CMD_SET_PORTS]	    = match_cmd_set_ports,
 };
 
 int matchd_rx_process(struct nlmsghdr *nlh)
