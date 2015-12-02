@@ -239,7 +239,7 @@ static void get_rules_usage(void)
 
 static void get_lport_usage(void)
 {
-	printf("Usage: %s lookup_lport (pci BUS:DEVICE.FUNCTION | mac MACADDR)\n", progname);
+	printf("Usage: %s lport_lookup (pci BUS:DEVICE.FUNCTION | mac MACADDR)\n", progname);
 	printf("Where:\n");
 	printf("  pci    is the pci BUS:DEVICE.FUNCTION of the port to lookup\n");
 	printf("  mac    is the MAC Address of the port to lookup\n");
