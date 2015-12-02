@@ -139,8 +139,6 @@ int main(int argc, char **argv)
 {
 	struct nl_sock *nsd;
 	int family = NET_MAT_DFLT_FAMILY;
-	struct sockaddr_nl dest_addr;
-	unsigned char *buf;
 	int rc = EXIT_SUCCESS;
 	int err, opt;
 	const char *backend = NULL;
@@ -218,26 +216,12 @@ int main(int argc, char **argv)
 	sigaction(SIGINT, &sig_act, NULL);
 	sigaction(SIGTERM, &sig_act, NULL);
 
-	while (1) {
-		MAT_LOG(DEBUG, "Waiting for message\n");
-		rc = nl_recv(nsd, &dest_addr, &buf, NULL);
-		if(rc <= 0) {
-			printf("%s:receive error on netlink socket:%d\n",
-				__func__, errno);
-			rc = EXIT_FAILURE;
-			break;
-		}
-		/*printf("%s:recvfrom received %d bytes from pid %d\n",
-			__func__, rc, dest_addr.nl_pid); */
-
-		err = matchd_rx_process((struct nlmsghdr *)buf);
-		if (err < 0)
-			MAT_LOG(ERR, "%s: Warning: parsing error\n",
-					__func__);
-
-		free(buf);
+	err = matchd_receive_loop(nsd);
+	if (err) {
+		MAT_LOG(ERR, "Error in matchd_receive_loop()\n");
+		rc = EXIT_FAILURE;
 	}
-	
+
 	matchd_uninit();
 
 	nl_close(nsd);
