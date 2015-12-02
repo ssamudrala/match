@@ -31,10 +31,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/queue.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -47,7 +45,6 @@
 #include <getopt.h>
 
 #include <libnl3/netlink/netlink.h>
-#include <libnl3/netlink/socket.h>
 #include <libnl3/netlink/genl/genl.h>
 #include <libnl3/netlink/genl/ctrl.h>
 
@@ -75,8 +72,6 @@
 
 static struct nl_sock *nsd;
 static char *progname;
-
-static void process_rx_message(int verbose);
 
 static int
 get_match_arg(int argc, char **argv, bool need_value, bool need_mask_type,
@@ -288,17 +283,6 @@ static void set_port_usage(void)
 	printf(" mcast_flooding: Multicast frames forwarding (enabled/disabled)\n");
 }
 
-static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
-	[NET_MAT_IDENTIFIER_TYPE] = { .type = NLA_U32 },
-	[NET_MAT_IDENTIFIER]	= { .type = NLA_U32 },
-	[NET_MAT_TABLES]	= { .type = NLA_NESTED },
-	[NET_MAT_HEADERS]	= { .type = NLA_NESTED },
-	[NET_MAT_ACTIONS]	= { .type = NLA_NESTED },
-	[NET_MAT_HEADER_GRAPH]	= { .type = NLA_NESTED },
-	[NET_MAT_TABLE_GRAPH]	= { .type = NLA_NESTED },
-	[NET_MAT_RULES]	= { .type = NLA_NESTED },
-	[NET_MAT_PORTS]	= { .type = NLA_NESTED },
-};
 
 /*
  * Parse a MAC address
@@ -345,353 +329,6 @@ match_macaddr2u64(__u64 *dst, const char *src)
 	return 0;
 }
 
-static void match_cmd_get_tables(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	struct net_mat_tbl *tables = NULL;
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get tables msg\n");
-		return;
-	}
-
-	if (match_nl_table_cmd_to_type(NULL, NET_MAT_TABLES, tb))
-		return;
-
-	if (tb[NET_MAT_TABLES]) {
-		match_get_tables(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_TABLES], &tables);
-		match_push_tables_a(tables);
-	}
-}
-
-static void match_cmd_get_headers(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get headers msg\n");
-		return;
-	}
-
-	if (match_nl_table_cmd_to_type(NULL, NET_MAT_HEADERS, tb))
-		return;
-
-	if (tb[NET_MAT_HEADERS])
-		match_get_headers(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_HEADERS], NULL);
-}
-
-static void match_cmd_get_actions(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get actions msg\n");
-		return;
-	}
-
-	if (match_nl_table_cmd_to_type(NULL, NET_MAT_ACTIONS, tb))
-		return;
-
-	if (tb[NET_MAT_ACTIONS]) {
-		struct net_mat_action *a;
-
-		match_get_actions(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_ACTIONS], &a);
-		match_push_actions_ary(a);
-	}
-}
-
-static void match_cmd_get_headers_graph(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get header graph msg\n");
-		return;
-	}
-
-	if (match_nl_table_cmd_to_type(NULL, NET_MAT_HEADER_GRAPH, tb))
-		return;
-
-	if (tb[NET_MAT_HEADER_GRAPH])
-		match_get_hdrs_graph(verbose ? mat_stream_stdout() : NULL, verbose,
-				tb[NET_MAT_HEADER_GRAPH], NULL);
-}
-
-static void match_cmd_get_table_graph(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get table graph msg\n");
-		return;
-	}
-
-	if (match_nl_table_cmd_to_type(NULL, NET_MAT_TABLE_GRAPH, tb))
-		return;
-
-	if (tb[NET_MAT_TABLE_GRAPH])
-		match_get_tbl_graph(verbose ? mat_stream_stdout() : NULL, verbose,
-			tb[NET_MAT_TABLE_GRAPH], NULL);
-}
-
-static void match_cmd_get_rules(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get rules msg\n");
-		return;
-	}
-
-	err = match_nl_table_cmd_to_type(NULL, 0, tb);
-	if (err == -ENOMSG) {
-		fprintf(stdout, "Table empty\n");
-		return;
-	} else if (err) {
-		fprintf(stderr, "Warning: recevied cmd without valid attribute expected %i\n", NET_MAT_RULES);
-		return;
-	}
-
-	if (tb[NET_MAT_RULES])
-		match_get_rules(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_RULES], NULL);
-}
-
-static void match_cmd_set_rules(struct match_msg *msg, int verbose)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse set rules msg\n");
-		return;
-	}
-
-	err = match_nl_table_cmd_to_type(NULL, 0, tb);
-	if (err)
-		return;
-
-	if (tb[NET_MAT_RULES]) {
-		fprintf(stderr, "Failed to set:\n");
-		match_get_rules(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_RULES], NULL);
-	}
-}
-
-static void match_cmd_del_rules(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse del rules msg\n");
-		return;
-	}
-
-	fprintf(stderr, "delete rule cmd not supported\n");
-}
-
-static void
-match_cmd_update_rules(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse update tables msg\n");
-		return;
-	}
-	fprintf(stderr, "update match cmd not supported\n");
-}
-
-static void
-match_cmd_create_table(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse create table msg\n");
-		return;
-	}
-}
-
-static void
-match_cmd_destroy_table(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse destroy table msg\n");
-		return;
-	}
-}
-
-static void
-match_cmd_get_lport(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	struct net_mat_port *port = NULL;
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get ports msg\n");
-		return;
-	}
-
-	err = match_nl_table_cmd_to_type(NULL, NET_MAT_PORTS, tb);
-	if (err)
-		return;
-
-	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(NULL, tb[NET_MAT_PORTS], &port);
-		if (err)
-			fprintf(stderr, "Warning: unable to parse get ports\n");
-		else
-			fprintf(stdout, "Logical Port: %d\n", port->port_id);
-
-		free(port);
-	}
-}
-
-static void
-match_cmd_get_ports(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse get ports msg\n");
-		return;
-	}
-
-	err = match_nl_table_cmd_to_type(NULL, NET_MAT_PORTS, tb);
-	if (err)
-		return;
-
-	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_PORTS], NULL);
-		if (err)
-			fprintf(stderr, "Warning: unable to parse get ports\n");
-	}
-}
-
-static void
-match_cmd_set_ports(struct match_msg *msg, int verbose __unused)
-{
-	struct nlmsghdr *nlh = msg->msg;
-	struct nlattr *tb[NET_MAT_MAX+1];
-	int err;
-
-	err = genlmsg_parse(nlh, 0, tb, NET_MAT_MAX, match_get_tables_policy);
-	if (err < 0) {
-		fprintf(stderr, "Warning: unable to parse set ports msg\n");
-		return;
-	}
-
-	err = match_nl_table_cmd_to_type(NULL, 0, tb);
-	if (err)
-		return;
-
-	if (tb[NET_MAT_PORTS]) {
-		err = match_get_ports(verbose ? mat_stream_stdout() : NULL, tb[NET_MAT_PORTS], NULL);
-		if (err)
-			fprintf(stderr, "Warning: unable to parse get ports\n");
-	}
-}
-
-static void(*type_cb[NET_MAT_CMD_MAX+1])(struct match_msg *, int verbose) = {
-	[NET_MAT_TABLE_CMD_GET_TABLES]        = match_cmd_get_tables,
-	[NET_MAT_TABLE_CMD_GET_HEADERS]       = match_cmd_get_headers,
-	[NET_MAT_TABLE_CMD_GET_ACTIONS]       = match_cmd_get_actions,
-	[NET_MAT_TABLE_CMD_GET_HDR_GRAPH]     = match_cmd_get_headers_graph,
-	[NET_MAT_TABLE_CMD_GET_TABLE_GRAPH]   = match_cmd_get_table_graph,
-	[NET_MAT_TABLE_CMD_GET_RULES]         = match_cmd_get_rules,
-	[NET_MAT_TABLE_CMD_SET_RULES]         = match_cmd_set_rules,
-	[NET_MAT_TABLE_CMD_DEL_RULES]         = match_cmd_del_rules,
-	[NET_MAT_TABLE_CMD_UPDATE_RULES]      = match_cmd_update_rules,
-	[NET_MAT_TABLE_CMD_CREATE_TABLE]      = match_cmd_create_table,
-	[NET_MAT_TABLE_CMD_DESTROY_TABLE]     = match_cmd_destroy_table,
-	[NET_MAT_TABLE_CMD_UPDATE_TABLE]      = match_cmd_create_table,
-	[NET_MAT_PORT_CMD_GET_PORTS]          = match_cmd_get_ports,
-	[NET_MAT_PORT_CMD_GET_LPORT]          = match_cmd_get_lport,
-	[NET_MAT_PORT_CMD_GET_PHYS_PORT]      = match_cmd_get_ports,
-	[NET_MAT_PORT_CMD_SET_PORTS]          = match_cmd_set_ports,
-};
-
-void process_rx_message(int verbose)
-{
-	struct match_msg *msg;
-	int err;
-	int type;
-	sigset_t bs;
-
-	sigemptyset(&bs);
-	sigaddset(&bs, SIGINT);
-
-	/*
-	 * Continue processing messages until an NLMSG_DONE message is
-	 * received, a message without the NLM_F_MULTI flag is received,
-	 * or an error occurs.
-	 */
-	for (;;) {
-		sigprocmask(SIG_UNBLOCK, &bs, NULL);
-		msg = match_nl_recv_msg(nsd, &err);
-		sigprocmask(SIG_BLOCK, &bs, NULL);
-
-		if (msg) {
-			struct nlmsghdr *nlh = msg->msg;
-			struct genlmsghdr *glh = nlmsg_data(nlh);
-
-			if (nlh->nlmsg_type == NLMSG_DONE) {
-				match_nl_free_msg(msg);
-				break;
-			}
-
-			type = glh->cmd;
-			type_cb[type](msg, verbose);
-
-			if (!(nlh->nlmsg_flags & NLM_F_MULTI)) {
-				match_nl_free_msg(msg);
-				break;
-			}
-			match_nl_free_msg(msg);
-		} else {
-			break;
-		}
-	}
-}
 
 #define next_arg() do { argv++; argc--; } while (0)
 
@@ -1414,12 +1051,9 @@ done:
 
 int
 match_destroy_tbl_send(int verbose, uint32_t pid, int family,
-		unsigned int ifindex, int argc, char **argv)
+		       unsigned int ifindex, int argc, char **argv)
 {
-	uint8_t cmd = NET_MAT_TABLE_CMD_DESTROY_TABLE;
 	struct net_mat_tbl table;
-	struct nlattr *nest, *nest1;
-	struct match_msg *msg;
 	int err = 0;
 
 	memset(&table, 0, sizeof(table));
@@ -1529,39 +1163,15 @@ match_destroy_tbl_send(int verbose, uint32_t pid, int family,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMSG;
+	match_nl_set_verbose(verbose);
+
+	err = match_nl_destroy_table(nsd, pid, ifindex, family, &table);
+	if (err < 0) {
+		fprintf(stderr, "Error: match_nl_destroy_table() failed\n");
+		return err;
 	}
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	nest = nla_nest_start(msg->nlbuf, NET_MAT_TABLES);
-	if (!nest) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-	nest1 = nla_nest_start(msg->nlbuf, NET_MAT_TABLE);
-	match_put_table(msg->nlbuf, &table);
-	nla_nest_end(msg->nlbuf, nest1);
-	nla_nest_end(msg->nlbuf, nest);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-
-	match_nl_free_msg(msg);
 	return err;
-
 }
 
 static struct net_mat_named_value *
@@ -1708,14 +1318,12 @@ static void match_free_action(struct net_mat_action *a)
 
 int
 match_create_tbl_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
-		     int argc, char **argv, uint8_t cmd)
+		      int argc, char **argv, uint8_t cmd)
 {
-	struct nlattr *nest, *nest1;
 	struct net_mat_named_value attribs[MAX_ATTRIBS];
 	struct net_mat_field_ref matches[MAX_MATCHES];
 	__u32 acts[MAX_ACTIONS];
 	int match_count = 0, action_count = 0, attrib_count = 0;
-	struct match_msg *msg;
 	int err = 0, advance = 0;
 	struct net_mat_tbl table;
 
@@ -1893,47 +1501,34 @@ match_create_tbl_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMEM;
+	match_nl_set_verbose(verbose);
+
+	switch (cmd) {
+	case NET_MAT_TABLE_CMD_CREATE_TABLE:
+		err = match_nl_create_table(nsd, pid, ifindex, family, &table);
+		if (err < 0) {
+			fprintf(stderr, "Error: match_nl_create_table() failed\n");
+			return err;
+		}
+		break;
+
+	case NET_MAT_TABLE_CMD_UPDATE_TABLE:
+		err = match_nl_update_table(nsd, pid, ifindex, family, &table);
+		if (err < 0) {
+			fprintf(stderr, "Error: match_nl_update_table() failed\n");
+			return err;
+		}
+		break;
 	}
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	nest = nla_nest_start(msg->nlbuf, NET_MAT_TABLES);
-	if (!nest) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-	nest1 = nla_nest_start(msg->nlbuf, NET_MAT_TABLE);
-	match_put_table(msg->nlbuf, &table);
-	nla_nest_end(msg->nlbuf, nest1);
-	nla_nest_end(msg->nlbuf, nest);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-	match_nl_free_msg(msg);
 	return err;
 }
 
 int
 rule_del_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
-	int argc, char **argv)
+	      int argc, char **argv)
 {
 	struct net_mat_rule rule = {0};
-	struct match_msg *msg;
-	struct nlattr *rules;
-	uint8_t cmd = NET_MAT_TABLE_CMD_DEL_RULES;
 	int err;
 
 	while (argc > 0) {
@@ -2000,54 +1595,26 @@ rule_del_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMSG;
-	}
+	match_nl_set_verbose(verbose);
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
-	if (err) {
-		match_nl_free_msg(msg);
+	err = match_nl_del_rules(nsd, pid, ifindex, family, &rule);
+	if (err < 0) {
+		fprintf(stderr, "Error: match_nl_del_rules() failed\n");
 		return err;
 	}
 
-	rules = nla_nest_start(msg->nlbuf, NET_MAT_RULES);
-	if (!rules) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-	match_put_rule(msg->nlbuf, &rule);
-	nla_nest_end(msg->nlbuf, rules);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-
-	match_nl_free_msg(msg);
 	return err;
 }
 
+
 int
 rule_get_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
-	int argc, char **argv)
+	      int argc, char **argv)
 {
-	uint8_t cmd = NET_MAT_TABLE_CMD_GET_RULES;
 	unsigned int tableid, min = 0, max = 0;
 	char *table = NULL;
-	struct match_msg *msg;
-	struct nlattr *rules;
 	int err;
+	struct net_mat_rule *rules = NULL;
 
 	opterr = 0;
 	while (argc > 0) {
@@ -2113,67 +1680,13 @@ rule_get_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMSG;
-	}
+	match_nl_set_verbose(verbose);
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
+	rules = match_nl_get_rules(nsd, pid, ifindex, family,
+				   tableid, min, max);
+	/* TODO - Free rules array including matches/actions fields */
+	(void)rules;
 
-	rules = nla_nest_start(msg->nlbuf, NET_MAT_RULES);
-	if (!rules) {
-		fprintf(stderr, "Error: get_rules attributes failed\n");
-		match_nl_free_msg(msg);
-		return -ENOMSG;
-	}
-
-	err = nla_put_u32(msg->nlbuf, NET_MAT_TABLE_RULES_TABLE, tableid);
-	if (err) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	if (min > 0) {
-		err = nla_put_u32(msg->nlbuf, NET_MAT_TABLE_RULES_MINPRIO,
-				min);
-		if (err) {
-			match_nl_free_msg(msg);
-			return err;
-		}
-	}
-
-	if (max > 0) {
-		err = nla_put_u32(msg->nlbuf, NET_MAT_TABLE_RULES_MAXPRIO,
-				max);
-		if (err) {
-			match_nl_free_msg(msg);
-			return err;
-		}
-	}
-
-
-	nla_nest_end(msg->nlbuf, rules);
-
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
-	if (err) {
-		match_nl_free_msg(msg);
-		return err;
-	}
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-
-	match_nl_free_msg(msg);
 	return err;
 }
 
@@ -2184,12 +1697,9 @@ rule_set_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	struct net_mat_field_ref matches[MAX_MATCHES];
 	struct net_mat_action acts[MAX_ACTIONS];
 	int match_count = 0, action_count = 0;
-	struct match_msg *msg;
 	int advance = 0;
-	uint8_t cmd = NET_MAT_TABLE_CMD_SET_RULES;
 	int err = 0;
 	struct net_mat_rule rule;
-	struct nlattr *rules;
 	const char *valid_keyword_list [] = {
 		"match", "action", "prio", "handle", "table", NULL};
 
@@ -2284,49 +1794,23 @@ rule_set_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		exit(-1);
 	}
 
-	pp_rule(mat_stream_stdout(), &rule);
+//	pp_rule(mat_stream_stdout(), &rule);
 
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMSG;
-	}
+	match_nl_set_verbose(verbose);
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
-	if (err) {
-		match_nl_free_msg(msg);
+	err = match_nl_del_rules(nsd, pid, ifindex, family, &rule);
+	if (err < 0) {
+		fprintf(stderr, "Error: match_nl_del_rules() failed\n");
 		return err;
 	}
 
-	rules = nla_nest_start(msg->nlbuf, NET_MAT_RULES);
-	if (!rules) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-	match_put_rule(msg->nlbuf, &rule);
-	nla_nest_end(msg->nlbuf, rules);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-
-	match_nl_free_msg(msg);
 	return err;
 }
+
 
 static int
 match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
@@ -2336,10 +1820,14 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	bool have_mac_query = false;
 	bool have_lport_query = false;
 	struct net_mat_port port;
-	struct match_msg *msg;
-	struct nlattr *nest0, *nest1;
-	int ret, err;
+	int ret;
+	int err = 0;
 	uint32_t min = NET_MAT_PORT_ID_UNSPEC, max = NET_MAT_PORT_ID_UNSPEC;
+	uint32_t phys_port;
+	uint32_t glort;
+	uint32_t lport;
+	struct net_mat_port *ports = NULL;
+
 
 	memset(&port, 0, sizeof(port));
 	port.port_id = NET_MAT_PORT_ID_UNSPEC;
@@ -2457,77 +1945,54 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMEM;
-	}
+	match_nl_set_verbose(verbose);
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	nest0 = nla_nest_start(msg->nlbuf, NET_MAT_PORTS);
-	if (!nest0) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	if (max != NET_MAT_PORT_ID_UNSPEC) {
-		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MAX_INDEX, max);
-		if (err) {
-			fprintf(stderr, "Error: put max port failed\n");
-			match_nl_free_msg(msg);
-			return -EMSGSIZE;
+	switch (cmd) {
+	case NET_MAT_PORT_CMD_GET_PHYS_PORT:
+		if (have_lport_query) {
+			err = match_nl_lport_to_phys_port(nsd, pid, ifindex, family,
+							  port.port_id, &phys_port, &glort);
+			if (err < 0) {
+				fprintf(stderr, "Error: match_nl_lport_to_phys_port() failed\n");
+				return err;
+			}
 		}
-	}
+		break;
 
-	if (min != NET_MAT_PORT_ID_UNSPEC) {
-		err = nla_put_u32(msg->nlbuf, NET_MAT_PORT_MIN_INDEX, min);
-		if (err) {
-			fprintf(stderr, "Error: put max port failed\n");
-			match_nl_free_msg(msg);
-			return -EMSGSIZE;
+	case NET_MAT_PORT_CMD_GET_LPORT:
+		if (have_pci_query) {
+			err = match_nl_pci_lport(nsd, pid, ifindex, family,
+						 port.pci.bus, port.pci.device, port.pci.function,
+						 &lport, &glort);
+			if (err < 0) {
+				fprintf(stderr, "Error: match_nl_pci_lport() failed\n");
+				return err;
+			}
 		}
-	}
-
-	nest1 = nla_nest_start(msg->nlbuf, NET_MAT_PORT);
-	if (!nest1) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	if (have_pci_query || have_mac_query || have_lport_query) {
-		err = match_put_port(msg->nlbuf, &port);
-		if (err) {
-			fprintf(stderr, "Error: match put port failed\n");
-			match_nl_free_msg(msg);
-			return -EMSGSIZE;
+		if (have_mac_query) {
+			err = match_nl_mac_lport(nsd, pid, ifindex, family,
+						 port.mac_addr, &lport, &glort);
+			if (err < 0) {
+				fprintf(stderr, "Error: match_nl_mac_lport() failed\n");
+				return err;
+			}
 		}
+		break;
+
+	case NET_MAT_PORT_CMD_GET_PORTS:
+		ports = match_nl_get_ports(nsd, pid, ifindex, family, min, max);
+		free(ports);
+		break;
 	}
 
-	nla_nest_end(msg->nlbuf, nest1);
-	nla_nest_end(msg->nlbuf, nest0);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-	match_nl_free_msg(msg);
 	return err;
 }
 
+
 static int
 match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
-		   int argc, char **argv, uint8_t cmd)
+		   int argc, char **argv, uint8_t cmd __unused)
 {
-	struct nlattr *nest, *nest1;
-	struct match_msg *msg;
 	int err = 0;
 	struct net_mat_port port;
 	struct net_mat_port *port_be = NULL;
@@ -2884,43 +2349,13 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMEM;
-	}
+	match_nl_set_verbose(verbose);
 
-	if (nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-			NET_MAT_IDENTIFIER_IFINDEX) ||
-	    nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex)) {
-		fprintf(stderr, "Error: Identifier put failed\n");
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-
-	nest = nla_nest_start(msg->nlbuf, NET_MAT_PORTS);
-	if (!nest) {
-		match_nl_free_msg(msg);
-		return -EMSGSIZE;
-	}
-	nest1 = nla_nest_start(msg->nlbuf, NET_MAT_PORT);
-
-	err = match_put_port(msg->nlbuf, &port);
-	if (err) {
-		fprintf(stderr, "Error: match put port failed\n");
-		match_nl_free_msg(msg);
+	err = match_nl_set_port(nsd, pid, ifindex, family, &port);
+	if (err < 0) {
+		fprintf(stderr, "Error: match_nl_set_port() failed\n");
 		return err;
 	}
-
-	nla_nest_end(msg->nlbuf, nest1);
-	nla_nest_end(msg->nlbuf, nest);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-	match_nl_free_msg(msg);
 
 	/* Reading updated port settings from backend here to display to user */
 	port_be = match_nl_get_ports(nsd, pid, 0, family, port.port_id, port.port_id);
@@ -2932,34 +2367,122 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 
 	return err;
 }
+
+
 int
 match_send_recv(int verbose, uint32_t pid, int family, uint32_t ifindex,
-	uint8_t cmd)
+		uint8_t cmd)
 {
-	struct match_msg *msg;
-	int err;
+	int err = 0;
+	struct net_mat_hdr *headers = NULL;
+	struct net_mat_action *actions = NULL;
+	struct net_mat_tbl *tables = NULL;
+	struct net_mat_hdr_node *hdr_nodes = NULL;
+	struct net_mat_tbl_node *tbl_nodes = NULL;
+
 
 	/* open generic netlink socket with MATCH api */
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	msg = match_nl_alloc_msg(cmd, pid, NLM_F_REQUEST|NLM_F_ACK, 0, family);
-	if (!msg) {
-		fprintf(stderr, "Error: Allocation failure\n");
-		return -ENOMSG;
+	match_nl_set_verbose(verbose);
+
+	switch (cmd) {
+	case NET_MAT_TABLE_CMD_GET_HEADERS:
+		/*
+		 * Get match headers and populate cache in match library
+		 * match_nl_get_headers calls match_get_headers which allocates individual
+		 * net_mat_hdr structures and parses information from the GET_HEADERS message into
+		 * each header. Information parsed includes header name and array of fields.
+		 * Each header is cached in the match library global array of headers, indexed by
+		 * its uid.
+		 * Finally a contiguous array of all headers parsed (in the order of appearance
+		 * in the netlink message) is allocated populated with shallow copy of the headers
+		 * We own the array of headers returned to us and need to free it. However, any
+		 * references (name, fields) to other structures are owned by match library cache
+		 * and must not be freed by us.
+		 */
+		headers = match_nl_get_headers(nsd, pid, ifindex, family);
+		if (!headers) {
+			fprintf(stderr, "Error: match_nl_get_headers() failed\n");
+			return -ECOMM;
+		}
+		break;
+
+	case NET_MAT_TABLE_CMD_GET_ACTIONS:
+		/*
+		 * Get match actions and populate cache in match library
+		 * match_nl_get_actions calls match_get_actions which allocates an array of
+		 * net_mat_action which is used for parsing individual actions and their argument
+		 * structures. This array is returned to us. Unlike headers, actions are not
+		 * cached within match library. Therefore match_push_actions_ary is called for
+		 * caching references to the actions array. Note that the actions array must not
+		 * be released unless any cached references to it are cleared in match library.
+		 */
+		actions = match_nl_get_actions(nsd, pid, ifindex, family);
+		if (!actions) {
+			fprintf(stderr, "Error: match_nl_get_actions() failed");
+			return -ECOMM;
+		}
+		match_push_actions_ary(actions);
+		break;
+
+	case NET_MAT_TABLE_CMD_GET_TABLES:
+		/*
+		 * Get match tables and populate cache in match library
+		 * match_nl_get_tables calls match_get_tables which allocates an array of
+		 * net_mat_tbl which is used for parsing individual tables and their matches,
+		 * actions, and values. This array is returned to us. Like actions, tables are not
+		 * cached within match library. Therefore match_push_tables_a is called for
+		 * caching references to the tables array. Note that the tables array must not
+		 * be released unless any cached references to it are cleared in match library.
+		 */
+		tables = match_nl_get_tables(nsd, pid, ifindex, family);
+		if (!tables) {
+			fprintf(stderr, "Error: match_nl_get_tables() failed");
+			return -ECOMM;
+		}
+		match_push_tables_a(tables);
+		break;
+
+	case NET_MAT_TABLE_CMD_GET_HDR_GRAPH:
+		/*
+		 * Get match header graph and populate cache in match library
+		 * match_nl_get_hdr_graph calls match_get_hdrs_graph which allocates an array of
+		 * net_mat_hdr_node which is used for parsing individual header graph nodes and
+		 * their header references and jump tables. This array is returned to us.
+		 * Match library caches references to individual graph nodes within the returned
+		 * array indexed by their uids. However, it does not cache a pointer to the array
+		 * itself.
+		 * Note that the graph nodes array must not be released unless any cached
+		 * references to it are cleared in match library.
+		 */
+		hdr_nodes = match_nl_get_hdr_graph(nsd, pid, ifindex, family);
+		if (!hdr_nodes) {
+			fprintf(stderr, "Error: match_nl_get_hdr_graph() failed");
+			return -ECOMM;
+		}
+		break;
+
+	case NET_MAT_TABLE_CMD_GET_TABLE_GRAPH:
+		/*
+		 * Get match table graph and populate cache in match library
+		 * match_nl_get_tbl_graph calls match_get_tbl_graph which allocates an array of
+		 * net_mat_tbl_node which is used for parsing individual table graph nodes and
+		 * their jump tables. This array is returned to us.
+		 * Unlike header graph, Match library does not cache any references to individual
+		 * graph nodes within the returned array.
+		 * The table nodes array should be freed (including the jump tables accloacted
+		 * for each node)
+		 */
+		tbl_nodes = match_nl_get_tbl_graph(nsd, pid, ifindex, family);
+		if (!tbl_nodes) {
+			fprintf(stderr, "Error: match_nl_get_tbl_graph() failed");
+			return -ECOMM;
+		}
+		break;
 	}
 
-	nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER_TYPE,
-		NET_MAT_IDENTIFIER_IFINDEX);
-	nla_put_u32(msg->nlbuf, NET_MAT_IDENTIFIER, ifindex);
-
-	err = nl_send_auto(nsd, msg->nlbuf);
-	if (err > 0)
-		process_rx_message(verbose);
-	else
-		fprintf(stderr, "Error: nl_send_auto failed %i\n", err);
-
-	match_nl_free_msg(msg);
 	return err;
 }
 
@@ -3046,6 +2569,10 @@ int main(int argc, char **argv)
 			exit(-1);
 		}
 	}
+
+	match_nl_set_verbose(verbose);
+	if (verbose > 0)
+		match_nl_set_streamer(mat_stream_stdout());
 
 	if (!pid) {
 		pid = match_pid_lookup();
