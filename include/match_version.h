@@ -47,7 +47,7 @@
  */
 #define MATCH_VER_MAJOR  0
 #define MATCH_VER_MINOR  0
-#define MATCH_VER_LEVEL  3
+#define MATCH_VER_LEVEL  4
 
 /*
  * EXTRA can be
@@ -59,7 +59,7 @@
  * formulate a complete version number. The version number will be higher
  * for more recent versions.
  */
-#define MATCH_VER_EXTRA  16
+#define MATCH_VER_EXTRA  1
 
 /*
  * SUFFIX can be
