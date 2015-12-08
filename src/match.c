@@ -1043,6 +1043,12 @@ done:
 	return advance;
 }
 
+static void match_set_match_nl_verbose_and_streamer(int verbose)
+{
+	match_nl_set_verbose(verbose);
+	match_nl_set_streamer((verbose > 0) ? mat_stream_stdout() : NULL);
+}
+
 #define MAX_MATCHES 50
 #define MAX_ACTIONS 50
 #define MAX_ATTRIBS 50
@@ -1163,7 +1169,7 @@ match_destroy_tbl_send(int verbose, uint32_t pid, int family,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	err = match_nl_destroy_table(nsd, pid, ifindex, family, &table);
 	if (err < 0) {
@@ -1501,7 +1507,7 @@ match_create_tbl_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	switch (cmd) {
 	case NET_MAT_TABLE_CMD_CREATE_TABLE:
@@ -1595,7 +1601,7 @@ rule_del_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	err = match_nl_del_rules(nsd, pid, ifindex, family, &rule);
 	if (err < 0) {
@@ -1680,7 +1686,7 @@ rule_get_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	rules = match_nl_get_rules(nsd, pid, ifindex, family,
 				   tableid, min, max);
@@ -1800,11 +1806,11 @@ rule_set_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
-	err = match_nl_del_rules(nsd, pid, ifindex, family, &rule);
+	err = match_nl_set_rules(nsd, pid, ifindex, family, &rule);
 	if (err < 0) {
-		fprintf(stderr, "Error: match_nl_del_rules() failed\n");
+		fprintf(stderr, "Error: match_nl_set_rules() failed\n");
 		return err;
 	}
 
@@ -1945,7 +1951,7 @@ match_get_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	switch (cmd) {
 	case NET_MAT_PORT_CMD_GET_PHYS_PORT:
@@ -2349,7 +2355,7 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	err = match_nl_set_port(nsd, pid, ifindex, family, &port);
 	if (err < 0) {
@@ -2385,7 +2391,7 @@ match_send_recv(int verbose, uint32_t pid, int family, uint32_t ifindex,
 	nsd = nl_socket_alloc();
 	nl_connect(nsd, NETLINK_GENERIC);
 
-	match_nl_set_verbose(verbose);
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	switch (cmd) {
 	case NET_MAT_TABLE_CMD_GET_HEADERS:
@@ -2570,9 +2576,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	match_nl_set_verbose(verbose);
-	if (verbose > 0)
-		match_nl_set_streamer(mat_stream_stdout());
+	match_set_match_nl_verbose_and_streamer(verbose);
 
 	if (!pid) {
 		pid = match_pid_lookup();

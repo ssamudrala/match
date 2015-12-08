@@ -196,6 +196,7 @@ static void match_nl_handle_error(struct nlmsgerr *errmsg)
 		strerror(errmsg->error));
 }
 
+
 typedef int (* match_nl_msg_composer_fn_t)(struct match_msg *msg, void *composer_arg);
 typedef int (* match_nl_msg_handler_fn_t)(struct match_msg *msg, void *handler_arg);
 
@@ -281,6 +282,31 @@ static int match_nl_recvmsg_msg_cb_adapter(struct nl_msg *nlmsg, void *arg)
 }
 
 
+static int match_nl_recvmsg_err_cb(struct sockaddr_nl *nla __unused,
+				   struct nlmsgerr *errm, void *arg)
+{
+	struct match_nl_recvmsg_msg_cb_adapter_ctxt *ctxt = arg;
+
+
+	if (!arg) {
+		return NL_STOP;
+	}
+	ctxt->handler_err = 0;
+
+	if (!errm)
+		return -EINVAL;
+
+	if (errm->error) {
+		match_nl_handle_error(errm);
+		ctxt->handler_err = errm->error;
+
+		return NL_STOP;
+	}
+
+	return NL_OK;
+}
+
+
 static int
 match_nl_send_and_recv(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
 		       unsigned int ifindex, int family,
@@ -336,6 +362,12 @@ match_nl_send_and_recv(struct nl_sock *nsd, uint8_t cmd, uint32_t pid,
 				    match_nl_recvmsg_msg_cb_adapter, &adapter_ctxt);
 	if (NLE_SUCCESS != nlerr) {
 		MAT_LOG(ERR, "Error: nl_socket_modify_cb() failed(%d)\n", -nlerr);
+	}
+
+	nlerr = nl_socket_modify_err_cb(nsd, NL_CB_CUSTOM,
+					match_nl_recvmsg_err_cb, &adapter_ctxt);
+	if (NLE_SUCCESS != nlerr) {
+		MAT_LOG(ERR, "Error: nl_socket_modify_err_cb() failed(%d)\n", -nlerr);
 	}
 
 	nl_socket_disable_seq_check(nsd);
@@ -703,7 +735,7 @@ static int compose_set_del_rules(struct match_msg *msg, void *arg)
 	struct nlattr *rules;
 
 
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_CONT_LOG);
+	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
 	if (err) {
 		return err;
 	}
@@ -783,7 +815,7 @@ static int compose_get_rules(struct match_msg *msg, void *composer_arg)
 	int err = 0;
 
 
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_CONT_LOG);
+	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
 	if (err)
 		return err;
 
@@ -963,7 +995,7 @@ static int compose_get_ports(struct match_msg *msg, void *composer_arg)
 	int err = 0;
 
 
-	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_CONT_LOG);
+	err = match_put_rule_error(msg->nlbuf, NET_MAT_RULES_ERROR_ABORT);
 	if (err)
 		return err;
 
