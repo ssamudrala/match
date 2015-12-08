@@ -361,19 +361,6 @@ static void pfprintf(struct mat_stream *matsp, const char *format, ...)
 	va_end(args);
 }
 
-/* Top level parsing handled in applications */
-#if 0
-static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
-	[NET_MAT_IDENTIFIER_TYPE]	= { .type = NLA_U32 },
-	[NET_MAT_IDENTIFIER]		= { .type = NLA_U32 },
-	[NET_MAT_TABLES]		= { .type = NLA_NESTED },
-	[NET_MAT_HEADERS]		= { .type = NLA_NESTED },
-	[NET_MAT_ACTIONS]		= { .type = NLA_NESTED },
-	[NET_MAT_PARSE_GRAPH]		= { .type = NLA_NESTED },
-	[NET_MAT_TABLE_GRAPH]		= { .type = NLA_NESTED },
-	[NET_MAT_RULES]		= { .type = NLA_NESTED },
-};
-#endif
 
 struct nla_policy net_mat_table_policy[NET_MAT_TABLE_ATTR_MAX + 1] = {
 	[NET_MAT_TABLE_ATTR_NAME]	= { .type = NLA_STRING },
@@ -383,6 +370,7 @@ struct nla_policy net_mat_table_policy[NET_MAT_TABLE_ATTR_MAX + 1] = {
 	[NET_MAT_TABLE_ATTR_SIZE]	= { .type = NLA_U32 },
 	[NET_MAT_TABLE_ATTR_MATCHES]	= { .type = NLA_NESTED },
 	[NET_MAT_TABLE_ATTR_ACTIONS]	= { .type = NLA_NESTED },
+	[NET_MAT_TABLE_ATTR_NAMED_VALUES] = { .type = NLA_NESTED },
 };
 
 struct nla_policy net_mat_action_policy[NET_MAT_ACTION_ATTR_MAX + 1] = {
@@ -415,14 +403,17 @@ static struct nla_policy net_mat_field_policy[NET_MAT_FIELD_REF_MAX + 1] = {
 };
 
 static struct nla_policy match_table_rule_policy[NET_MAT_ATTR_MAX+1] = {
+	[NET_MAT_ATTR_ERROR]		= { .type = NLA_U32,},
 	[NET_MAT_ATTR_TABLE]		= { .type = NLA_U32,},
 	[NET_MAT_ATTR_UID]		= { .type = NLA_U32,},
-	[NET_MAT_ATTR_PRIORITY]	= { .type = NLA_U32,},
+	[NET_MAT_ATTR_PRIORITY]		= { .type = NLA_U32,},
+	[NET_MAT_ATTR_BYTES]		= { .type = NLA_U64,},
+	[NET_MAT_ATTR_PACKETS]		= { .type = NLA_U64,},
 	[NET_MAT_ATTR_MATCHES]		= { .type = NLA_NESTED,},
 	[NET_MAT_ATTR_ACTIONS]		= { .type = NLA_NESTED,},
 };
 
-static struct nla_policy match_get_header_policy[NET_MAT_FIELD_ATTR_MAX+1] = {
+static struct nla_policy match_get_header_policy[NET_MAT_HEADER_ATTR_MAX+1] = {
 	[NET_MAT_HEADER_ATTR_NAME]	= { .type = NLA_STRING },
 	[NET_MAT_HEADER_ATTR_UID]	= { .type = NLA_U32 },
 	[NET_MAT_HEADER_ATTR_FIELDS]	= { .type = NLA_NESTED },
@@ -478,15 +469,22 @@ static struct nla_policy net_mat_port_stats_policy[NET_MAT_PORT_T_STATS_MAX+1] =
 };
 
 static struct nla_policy net_mat_port_stats_rxtx_policy[NET_MAT_PORT_T_STATS_RXTX_MAX+1] = {
-       [NET_MAT_PORT_T_STATS_BYTES] = { .type = NLA_U64, },
-       [NET_MAT_PORT_T_STATS_PACKETS] = { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_BYTES]		= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_UNICAST_BYTES]	= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_MULTICAST_BYTES]	= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_BROADCAST_BYTES]	= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_PACKETS]		= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_UNICAST_PACKETS]	= { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_MULTICAST_PACKETS] = { .type = NLA_U64, },
+       [NET_MAT_PORT_T_STATS_BROADCAST_PACKETS] = { .type = NLA_U64, },
 };
 
 static struct nla_policy net_mat_port_vlan_policy[NET_MAT_PORT_T_VLAN_MAX+1] = {
-	[NET_MAT_PORT_T_VLAN_DEF_VLAN] = { .type = NLA_U32, },
-	[NET_MAT_PORT_T_VLAN_DROP_TAGGED] = { .type = NLA_U32, },
-	[NET_MAT_PORT_T_VLAN_DROP_UNTAGGED] = { .type = NLA_U32, },
-	[NET_MAT_PORT_T_VLAN_DEF_PRIORITY] = { .type = NLA_U32, },
+	[NET_MAT_PORT_T_VLAN_DEF_VLAN]		= { .type = NLA_U32, },
+	[NET_MAT_PORT_T_VLAN_DROP_TAGGED]	= { .type = NLA_U32, },
+	[NET_MAT_PORT_T_VLAN_DROP_UNTAGGED]	= { .type = NLA_U32, },
+	[NET_MAT_PORT_T_VLAN_DEF_PRIORITY]	= { .type = NLA_U32, },
+	[NET_MAT_PORT_T_VLAN_MEMBERSHIP]	= { .type = NLA_UNSPEC, .minlen =(MAX_VLAN / 8), },
 };
 
 static char *

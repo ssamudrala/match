@@ -94,9 +94,9 @@ static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
 	[NET_MAT_ACTIONS] 		= { .type = NLA_NESTED },
 	[NET_MAT_HEADER_GRAPH]		= { .type = NLA_NESTED },
 	[NET_MAT_TABLE_GRAPH] 		= { .type = NLA_NESTED },
-	[NET_MAT_RULES]		= { .type = NLA_NESTED },
-	[NET_MAT_RULES_ERROR]		= { .type = NLA_NESTED },
-	[NET_MAT_PORTS]		= { .type = NLA_NESTED },
+	[NET_MAT_RULES]			= { .type = NLA_NESTED },
+	[NET_MAT_RULES_ERROR]		= { .type = NLA_U32 },
+	[NET_MAT_PORTS]			= { .type = NLA_NESTED },
 };
 
 static struct nl_msg *match_alloc_msg(struct nlmsghdr *nlh, uint8_t type, uint16_t flags, int size)
@@ -541,7 +541,7 @@ static int match_cmd_get_rules(struct nlmsghdr *nlh)
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, NET_MAT_MAX,
+	err = nla_parse_nested(tb, NET_MAT_TABLE_RULES_MAX,
 			       tb[NET_MAT_RULES], match_table_rules_policy);
 	if (err) {
 		MAT_LOG(ERR, "Error: Cannot parse get rules request\n");
