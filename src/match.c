@@ -361,16 +361,16 @@ static int match_set_value_ll(struct net_mat_field_ref *match,
 
 	switch (match->type) {
 	case NET_MAT_FIELD_REF_ATTR_TYPE_U8:
-		match->v.u8.mask_u8 = (__u8)value;
+		match->v.u8.value_u8 = (__u8)value;
 		break;
 	case NET_MAT_FIELD_REF_ATTR_TYPE_U16:
-		match->v.u16.mask_u16 = (__u16)value;
+		match->v.u16.value_u16 = (__u16)value;
 		break;
 	case NET_MAT_FIELD_REF_ATTR_TYPE_U32:
-		match->v.u32.mask_u32 = (__u32)value;
+		match->v.u32.value_u32 = (__u32)value;
 		break;
 	case NET_MAT_FIELD_REF_ATTR_TYPE_U64:
-		match->v.u64.mask_u64 = (__u64)value;
+		match->v.u64.value_u64 = (__u64)value;
 		break;
 	case NET_MAT_FIELD_REF_ATTR_TYPE_IN6:
 	default:
