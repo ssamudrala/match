@@ -2363,7 +2363,12 @@ match_set_port_send(int verbose, uint32_t pid, int family, uint32_t ifindex,
 		return err;
 	}
 
-	/* Reading updated port settings from backend here to display to user */
+	/* Reading updated port settings from backend here to display to user
+	 * We have to disable disable port information printing inside matchlib_nl
+	 * as we have unconditional printing, not subjected to verbosity level,
+	 * after getting back the updated port structure.
+	 */
+	match_nl_set_streamer(NULL);
 	port_be = match_nl_get_ports(nsd, pid, 0, family, port.port_id, port.port_id);
 	if (!port_be) {
 		fprintf(stderr, "Error: match_nl_get_ports failed\n");
