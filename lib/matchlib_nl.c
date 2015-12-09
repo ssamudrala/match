@@ -70,14 +70,16 @@ static int verbose = 0;
 static struct mat_stream *matsp = NULL;
 
 static struct nla_policy match_get_tables_policy[NET_MAT_MAX+1] = {
-	[NET_MAT_IDENTIFIER_TYPE] = { .type = NLA_U32 },
-	[NET_MAT_IDENTIFIER]	= { .type = NLA_U32 },
-	[NET_MAT_TABLES]	= { .type = NLA_NESTED },
-	[NET_MAT_HEADERS]	= { .type = NLA_NESTED },
-	[NET_MAT_ACTIONS] 	= { .type = NLA_NESTED },
-	[NET_MAT_HEADER_GRAPH]	= { .type = NLA_NESTED },
-	[NET_MAT_TABLE_GRAPH]	= { .type = NLA_NESTED },
-	[NET_MAT_RULES]	= { .type = NLA_NESTED },
+	[NET_MAT_IDENTIFIER_TYPE]	= { .type = NLA_U32 },
+	[NET_MAT_IDENTIFIER]		= { .type = NLA_U32 },
+	[NET_MAT_TABLES]		= { .type = NLA_NESTED },
+	[NET_MAT_HEADERS]		= { .type = NLA_NESTED },
+	[NET_MAT_ACTIONS] 		= { .type = NLA_NESTED },
+	[NET_MAT_HEADER_GRAPH]		= { .type = NLA_NESTED },
+	[NET_MAT_TABLE_GRAPH] 		= { .type = NLA_NESTED },
+	[NET_MAT_RULES]			= { .type = NLA_NESTED },
+	[NET_MAT_RULES_ERROR]		= { .type = NLA_U32 },
+	[NET_MAT_PORTS]			= { .type = NLA_NESTED },
 };
 
 void match_nl_set_verbose(int new_verbose)
