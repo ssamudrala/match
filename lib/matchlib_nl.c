@@ -492,7 +492,7 @@ struct get_actions_handler_args {
 static int handle_get_actions(struct match_msg *msg, void *handler_arg)
 {
 	struct get_actions_handler_args *args = handler_arg;
-	struct nlmsghdr *nlh = msg->msg;
+	struct nlmsghdr *nlh;
 	struct nlattr *tb[NET_MAT_MAX+1];
 	struct net_mat_action *actions = NULL;
 	int err;
