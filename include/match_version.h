@@ -59,7 +59,7 @@
  * formulate a complete version number. The version number will be higher
  * for more recent versions.
  */
-#define MATCH_VER_EXTRA  2
+#define MATCH_VER_EXTRA  3
 
 /*
  * SUFFIX can be
@@ -67,7 +67,7 @@
  *   ""     - for released versions
  *   "rc"  - for release candidates
  */
-#define MATCH_VER_SUFFIX "dev"
+#define MATCH_VER_SUFFIX "rc"
 
 #define MATCH_VER_NUM(a,b,c,d) ((a) << 24 | (b) << 16 | (c) << 8 | (d))
 
