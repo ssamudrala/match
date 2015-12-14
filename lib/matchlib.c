@@ -636,20 +636,30 @@ pp_action(struct mat_stream *matsp, struct net_mat_action *act, bool print_value
 	struct net_mat_action_arg *arg;
 	int i;
 	char addr[INET6_ADDRSTRLEN];
+	struct net_mat_action *act_name;
+	struct net_mat_action_arg *arg_name;
 
-	pfprintf(matsp, "\t   %i: %s ( ", act->uid, act->name ? act->name : empty);
+	if ((act->uid < MAX_ACTIONS) && actions[act->uid])
+		act_name = actions[act->uid];
+	else
+		act_name = act;
+
+	pfprintf(matsp, "\t   %i: %s ( ", act->uid,
+		act_name->name ? act_name->name : empty);
 
 	if (!act->args)
 		goto out;
 
 	for (i = 0; act->args[i].type; i++) {
 		arg = &act->args[i];
+		arg_name = &act_name->args[i];
+
 		if (i > 0)
 			pfprintf(matsp, ", ");
 
 		pfprintf(matsp, "%s %s",
 			 match_table_arg_type_str[arg->type],
-			 arg->name ? arg->name : empty);
+			 arg_name->name ? arg_name->name : empty);
 
 		if (!print_values)
 			continue;
